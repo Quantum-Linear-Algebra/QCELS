@@ -15,6 +15,7 @@ import cmath
 import fejer_kernel
 import fourier_filter
 import generate_cdf
+import qiskit
 
 
 def generate_QPE_distribution(spectrum,population,J):
@@ -87,14 +88,38 @@ def generate_Z_est(spectrum,population,t,Nsample):
     max_time = t
     total_time = t * Nsample
     return Z_est, total_time, max_time 
-       
+    
+def generate_data_sim(Ham, t, Nsample, W = 'Re'):
+    qr_ancilla = QuantumRegister(1)
+    qr_eigenstate = QuantumRegister(Ham[0].shape[0])
+    cr = ClassicalRegister(1)
+    qc = QuantumCircuit(qr_ancilla, qr_eigenstate, cr)
+    qc.h(qr_ancilla[0])
+    mat = np.expm(2*pi*1j*Ham*t)
+    controlled_U = UnitaryGate(mat).control(annotated="yes")
+    qc.append(controlled_U, qargs = [qr_ancilla[i]] + qr_eigenstate[:] )
+    # if W = Imaginary
+    if W[0] == 'I': qc.sdag(qr_ancilla[0])
+    qc.h(qr_ancilla[0])
+    qc.measure(qr_ancilla[0],cr[0])
+    aer_sim = AerSimulator()
+    trans_qc = transpile(qc, aer_sim)
+    X_est = aer_sim.run(trans_qc, shots = 10**4).result().get_counts()
+    return X_est
+
+def generate_Z_sim(Ham, t, Nsample):
+    Re = generate_data_sim(Ham, t, Nsample, W = 'Re')
+    Im = generate_data_sim(Ham, t, Nsample, W = 'Im')
+    Z_est = complex(2*Re/Nsample-1,2*Im/Nsample-1)
+    max_time = t
+    total_time = t * Nsample
+    return Z_est, total_time, max_time
 
 def generate_spectrum_population(eigenenergies, population, p):
-
+    
     p = np.array(p)
     spectrum = eigenenergies * 0.25*np.pi/np.max(np.abs(eigenenergies))#normalize the spectrum
     q = population
-    print(p)
     num_p = p.shape[0]
     q[0:num_p] = p/(1-np.sum(p))*np.sum(q[num_p:])
     return spectrum, q/np.sum(q)
