@@ -15,7 +15,12 @@ import cmath
 import fejer_kernel
 import fourier_filter
 import generate_cdf
-import qiskit
+
+from qiskit import transpile
+from qiskit_aer import AerSimulator
+from qiskit.circuit import QuantumCircuit, QuantumRegister, ClassicalRegister
+from qiskit.circuit.library import UnitaryGate
+from scipy.linalg import expm
 
 
 def generate_QPE_distribution(spectrum,population,J):
@@ -91,26 +96,59 @@ def generate_Z_est(spectrum,population,t,Nsample):
     
 def generate_data_sim(Ham, t, Nsample, W = 'Re'):
     qr_ancilla = QuantumRegister(1)
-    qr_eigenstate = QuantumRegister(Ham[0].shape[0])
+    qr_eigenstate = QuantumRegister(np.log2(Ham[0].shape[0]))
     cr = ClassicalRegister(1)
     qc = QuantumCircuit(qr_ancilla, qr_eigenstate, cr)
     qc.h(qr_ancilla[0])
-    mat = np.expm(2*pi*1j*Ham*t)
+    # qc.x(qr_eigenstate)
+    # print(Ham)
+    mat = expm(2*np.pi*1j*Ham*t)
     controlled_U = UnitaryGate(mat).control(annotated="yes")
-    qc.append(controlled_U, qargs = [qr_ancilla[i]] + qr_eigenstate[:] )
+    qc.append(controlled_U, qargs = [qr_ancilla[:]] + qr_eigenstate[:] )
     # if W = Imaginary
-    if W[0] == 'I': qc.sdag(qr_ancilla[0])
+    if W[0] == 'I': qc.sdg(qr_ancilla[0])
     qc.h(qr_ancilla[0])
     qc.measure(qr_ancilla[0],cr[0])
+    # print(qc)
     aer_sim = AerSimulator()
     trans_qc = transpile(qc, aer_sim)
-    X_est = aer_sim.run(trans_qc, shots = 10**4).result().get_counts()
-    return X_est
+    counts = aer_sim.run(trans_qc, shots = 10**4).result().get_counts()
+    # print("\t\tget counts")
+    return counts
 
 def generate_Z_sim(Ham, t, Nsample):
-    Re = generate_data_sim(Ham, t, Nsample, W = 'Re')
-    Im = generate_data_sim(Ham, t, Nsample, W = 'Im')
-    Z_est = complex(2*Re/Nsample-1,2*Im/Nsample-1)
+    # print("\tstarted Re Hadamard test")
+    countsRe = generate_data_sim(Ham, t, Nsample, W = 'Re')    
+    # print("\tstarted Im Hadamard test")
+    countsIm = generate_data_sim(Ham, t, Nsample, W = 'Im')
+    # print("\tended Hadamard tests")
+
+    
+    re_p0 = re_p1 = im_p0 = im_p1 = 0
+    if countsRe.get('0') is not None:
+        re_p0 = countsRe['0']/Nsample
+    if countsRe.get('1') is not None:
+        re_p1 = countsRe['1']/Nsample
+    if countsIm.get('0') is not None:
+        im_p0 = countsIm['0']/Nsample
+    if countsIm.get('1') is not None:
+        im_p1 = countsIm['1']/Nsample
+    
+    Re = re_p0 - re_p1
+    Im = im_p0 - im_p1
+    
+    # ans = 0
+    # cos_angle = np.arccos(re)
+    # if  np.arcsin(im)<0:
+    #     ans = 2*pi - cos_angle
+    # else:
+    #     ans = cos_angle
+    # if ans < 0: ans = ans + 2*pi
+    # print("\nEstimated phase angle:\t", ans/(2*pi)) # divide estimate by 2*pi to get varphi rather than theta
+    # print("Exact phase angle:\t", angle)
+    
+    
+    Z_est = complex(Re,Im)
     max_time = t
     total_time = t * Nsample
     return Z_est, total_time, max_time
@@ -203,6 +241,68 @@ def qcels_largeoverlap(spectrum, population, T, NT, Nsample, lambda_prior):
         lambda_max=ground_energy_estimate_QCELS+np.pi/(2*tau) 
 
     return res, total_time_all, max_time_all
+
+def qcels_largeoverlap_ham(Ham, T, NT, Nsample, lambda_prior):
+    """Multi-level QCELS for a system with a large initial overlap.
+
+    Description: The code of using Multi-level QCELS to estimate the ground state energy for a systems with a large initial overlap
+
+    Args: eigenvalues of the Hamiltonian: spectrum; 
+    overlaps between the initial state and eigenvectors: population; 
+    the depth for generating the data set: T; 
+    number of data pairs: NT; 
+    number of samples: Nsample; 
+    initial guess of \lambda_0: lambda_prior
+
+    Returns: an estimation of \lambda_0; 
+    maximal evolution time T_{max}; 
+    total evolution time T_{total}
+
+    """
+    total_time_all = 0.
+    max_time_all = 0.
+
+    N_level=int(np.log2(T/NT))
+    Z_est=np.zeros(NT,dtype = 'complex') #'complex_'
+    tau=T/NT/(2**N_level)
+    ts=tau*np.arange(NT)
+    for i in range(NT):
+        Z_est[i], total_time, max_time=generate_Z_sim(Ham,ts[i],Nsample)
+        total_time_all += total_time
+        max_time_all = max(max_time_all, max_time)
+    #Step up and solve the optimization problem
+    x0=np.array((0.5,0,lambda_prior))
+    res = qcels_opt(ts, Z_est, x0)#Solve the optimization problem
+    #Update initial guess for next iteration
+    ground_coefficient_QCELS=res.x[0]
+    ground_coefficient_QCELS2=res.x[1]
+    ground_energy_estimate_QCELS=res.x[2]
+    #Update the estimation interval
+    lambda_min=ground_energy_estimate_QCELS-np.pi/(2*tau) 
+    lambda_max=ground_energy_estimate_QCELS+np.pi/(2*tau) 
+    #Iteration
+    for n_QCELS in range(N_level):
+        Z_est=np.zeros(NT,dtype = 'complex') # 'complex_'
+        tau=T/NT/(2**(N_level-n_QCELS-1)) #generate a sequence of \tau_j
+        ts=tau*np.arange(NT)
+        for i in range(NT):
+            Z_est[i], total_time, max_time=generate_Z_sim(Ham,ts[i],Nsample)
+            total_time_all += total_time
+            max_time_all = max(max_time_all, max_time)
+        #Step up and solve the optimization problem
+        x0=np.array((ground_coefficient_QCELS,ground_coefficient_QCELS2,ground_energy_estimate_QCELS))
+        bnds=((-np.inf,np.inf),(-np.inf,np.inf),(lambda_min,lambda_max)) 
+        res = qcels_opt(ts, Z_est, x0, bounds=bnds)#Solve the optimization problem
+        #Update initial guess for next iteration
+        ground_coefficient_QCELS=res.x[0]
+        ground_coefficient_QCELS2=res.x[1]
+        ground_energy_estimate_QCELS=res.x[2]
+        #Update the estimation interval
+        lambda_min=ground_energy_estimate_QCELS-np.pi/(2*tau) 
+        lambda_max=ground_energy_estimate_QCELS+np.pi/(2*tau) 
+
+    return res, total_time_all, max_time_all
+
 
 
 def qcels_smalloverlap(spectrum, population, T, NT, d, rel_gap, err_tol_rough, Nsample_rough, Nsample):
