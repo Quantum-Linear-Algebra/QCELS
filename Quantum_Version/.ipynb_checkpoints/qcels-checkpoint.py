@@ -126,17 +126,25 @@ def generate_Z_sim(Ham, t, Nsample):
     re_p0 = re_p1 = im_p0 = im_p1 = 0
     if countsRe.get('0') is not None:
         re_p0 = countsRe['0']/Nsample
-    if countsRe.get('1') is not None:
-        re_p1 = countsRe['1']/Nsample
+    # if countsRe.get('1') is not None:
+    #     re_p1 = countsRe['1']/Nsample
     if countsIm.get('0') is not None:
         im_p0 = countsIm['0']/Nsample
-    if countsIm.get('1') is not None:
-        im_p1 = countsIm['1']/Nsample
+    # if countsIm.get('1') is not None:
+    #     im_p1 = countsIm['1']/Nsample
     
-    Re = re_p0 - re_p1
-    Im = im_p0 - im_p1 
+    # Re = re_p0 - re_p1
+    Re = 2*re_p0-1
+    Im = 2*im_p0-1 
+
+    Angle = np.arccos(Re)
+    if  np.arcsin(Im)<0:
+        ans = 2*np.pi - Angle
+    else:
+        ans = Angle
+    Phase = Angle #/ (2*np.pi)
     
-    Z_est = complex(Re,Im)
+    Z_est = complex(np.cos(Angle),np.sin(Angle))
     max_time = t
     total_time = t * Nsample
     return Z_est, total_time, max_time
@@ -187,6 +195,8 @@ def qcels_largeoverlap(spectrum, population, T, NT, Nsample, lambda_prior):
     total_time_all = 0.
     max_time_all = 0.
 
+    print("START QCELS")
+
     N_level=int(np.log2(T/NT))
     Z_est=np.zeros(NT,dtype = 'complex') #'complex_'
     tau=T/NT/(2**N_level)
@@ -194,6 +204,7 @@ def qcels_largeoverlap(spectrum, population, T, NT, Nsample, lambda_prior):
     for i in range(NT):
         Z_est[i], total_time, max_time=generate_Z_est(
                 spectrum,population,ts[i],Nsample) #Approximate <\psi|\exp(-itH)|\psi> using Hadmard test
+        print("\t\t", Z_est[i])
         total_time_all += total_time
         max_time_all = max(max_time_all, max_time)
     #Step up and solve the optimization problem
@@ -207,6 +218,7 @@ def qcels_largeoverlap(spectrum, population, T, NT, Nsample, lambda_prior):
     lambda_min=ground_energy_estimate_QCELS-np.pi/(2*tau) 
     lambda_max=ground_energy_estimate_QCELS+np.pi/(2*tau) 
     #Iteration
+    print("\t", res.x)
     for n_QCELS in range(N_level):
         Z_est=np.zeros(NT,dtype = 'complex') # 'complex_'
         tau=T/NT/(2**(N_level-n_QCELS-1)) #generate a sequence of \tau_j
@@ -214,6 +226,7 @@ def qcels_largeoverlap(spectrum, population, T, NT, Nsample, lambda_prior):
         for i in range(NT):
             Z_est[i], total_time, max_time=generate_Z_est(
                     spectrum,population,ts[i],Nsample) #Approximate <\psi|\exp(-itH)|\psi> using Hadmard test
+            print("\t\t", Z_est[i])
             total_time_all += total_time
             max_time_all = max(max_time_all, max_time)
         #Step up and solve the optimization problem
@@ -227,7 +240,8 @@ def qcels_largeoverlap(spectrum, population, T, NT, Nsample, lambda_prior):
         #Update the estimation interval
         lambda_min=ground_energy_estimate_QCELS-np.pi/(2*tau) 
         lambda_max=ground_energy_estimate_QCELS+np.pi/(2*tau) 
-
+        print("\t", res.x)
+    print("END QCELS")
     return res, total_time_all, max_time_all
 
 def qcels_largeoverlap_ham(Ham, T, NT, Nsample, lambda_prior):
@@ -250,12 +264,15 @@ def qcels_largeoverlap_ham(Ham, T, NT, Nsample, lambda_prior):
     total_time_all = 0.
     max_time_all = 0.
 
+    print("START QCELS")
+
     N_level=int(np.log2(T/NT))
     Z_est=np.zeros(NT,dtype = 'complex') #'complex_'
     tau=T/NT/(2**N_level)
     ts=tau*np.arange(NT)
     for i in range(NT):
         Z_est[i], total_time, max_time=generate_Z_sim(Ham,ts[i],Nsample)
+        print("\t\t", Z_est[i])
         total_time_all += total_time
         max_time_all = max(max_time_all, max_time)
     #Step up and solve the optimization problem
@@ -270,13 +287,15 @@ def qcels_largeoverlap_ham(Ham, T, NT, Nsample, lambda_prior):
     lambda_max=ground_energy_estimate_QCELS+np.pi/(2*tau) 
     #Iteration
 
-    print("ts", ts, "Z_est", Z_est, "x0", x0)
+    
+    print("\t", res.x)
     for n_QCELS in range(N_level):
         Z_est=np.zeros(NT,dtype = 'complex') # 'complex_'
         tau=T/NT/(2**(N_level-n_QCELS-1)) #generate a sequence of \tau_j
         ts=tau*np.arange(NT)
         for i in range(NT):
             Z_est[i], total_time, max_time=generate_Z_sim(Ham,ts[i],Nsample)
+            print("\t\t", Z_est[i])
             total_time_all += total_time
             max_time_all = max(max_time_all, max_time)
         #Step up and solve the optimization problem
@@ -289,7 +308,9 @@ def qcels_largeoverlap_ham(Ham, T, NT, Nsample, lambda_prior):
         ground_energy_estimate_QCELS=res.x[2]
         #Update the estimation interval
         lambda_min=ground_energy_estimate_QCELS-np.pi/(2*tau) 
-        lambda_max=ground_energy_estimate_QCELS+np.pi/(2*tau) 
+        lambda_max=ground_energy_estimate_QCELS+np.pi/(2*tau)
+        print("\t", res.x)
+    print("END QCELS")
 
     return res, total_time_all, max_time_all
 
