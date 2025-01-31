@@ -89,6 +89,7 @@ def generate_Z_est(spectrum,population,t,Nsample):
     for nt2 in range(Nsample):
         if np.random.uniform(0,1)<Im_true:
            Im+=1
+    print("Re: ", Re/Nsample, "Im: ", Im/Nsample)
     Z_est = complex(2*Re/Nsample-1,2*Im/Nsample-1)
     max_time = t
     total_time = t * Nsample
@@ -101,7 +102,7 @@ def generate_data_sim(Ham, t, Nsample, W = 'Re'):
     qc = QuantumCircuit(qr_ancilla, qr_eigenstate, cr)
     qc.h(qr_ancilla[0])
     qc.h(qr_eigenstate)
-    mat = expm(2*np.pi*1j*Ham*t)
+    mat = expm(-1j*Ham*t)
     controlled_U = UnitaryGate(mat).control(annotated="yes")
     qc.append(controlled_U, qargs = [qr_ancilla[:]] + qr_eigenstate[:] )
     # if W = Imaginary
@@ -123,28 +124,23 @@ def generate_Z_sim(Ham, t, Nsample):
     # print("\tended Hadamard tests")
 
     
-    re_p0 = re_p1 = im_p0 = im_p1 = 0
+    re_p0 = im_p0 = 0
     if countsRe.get('0') is not None:
         re_p0 = countsRe['0']/Nsample
-    # if countsRe.get('1') is not None:
-    #     re_p1 = countsRe['1']/Nsample
     if countsIm.get('0') is not None:
         im_p0 = countsIm['0']/Nsample
-    # if countsIm.get('1') is not None:
-    #     im_p1 = countsIm['1']/Nsample
     
-    # Re = re_p0 - re_p1
+    print('Re: ',re_p0,'Im: ',im_p0)
     Re = 2*re_p0-1
     Im = 2*im_p0-1 
 
     Angle = np.arccos(Re)
     if  np.arcsin(Im)<0:
-        ans = 2*np.pi - Angle
+        Phase = 2*np.pi - Angle
     else:
-        ans = Angle
-    Phase = Angle #/ (2*np.pi)
+        Phase = Angle
     
-    Z_est = complex(np.cos(Angle),np.sin(Angle))
+    Z_est = complex(np.cos(Phase),np.sin(Phase))
     max_time = t
     total_time = t * Nsample
     return Z_est, total_time, max_time
@@ -345,7 +341,7 @@ def qcels_smalloverlap(spectrum, population, T, NT, d, rel_gap, err_tol_rough, N
     max_time_all = max(max_time_all, max_time_prior)
     
     N_level=int(np.log2(T/NT))
-    Z_est=np.zeros(NT,dtype = 'complex_')
+    Z_est=np.zeros(NT,dtype = 'complex')
     tau=T/NT/(2**N_level)
     ts=tau*np.arange(NT)
     for i in range(NT):
@@ -365,7 +361,7 @@ def qcels_smalloverlap(spectrum, population, T, NT, d, rel_gap, err_tol_rough, N
     lambda_max=ground_energy_estimate_QCELS+np.pi/(2*tau)
     #Iteration
     for n_QCELS in range(N_level):
-        Z_est=np.zeros(NT,dtype = 'complex_')
+        Z_est=np.zeros(NT,dtype = 'complex')
         tau=T/NT/(2**(N_level-n_QCELS-1))
         ts=tau*np.arange(NT)
         for i in range(NT):
