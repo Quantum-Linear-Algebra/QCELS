@@ -19,7 +19,7 @@ import generate_cdf
 from qiskit import transpile
 from qiskit_aer import AerSimulator
 from qiskit.circuit import QuantumCircuit, QuantumRegister, ClassicalRegister
-from qiskit.circuit.library import UnitaryGate
+from qiskit.circuit.library import UnitaryGate, QFT
 from scipy.linalg import expm
 
 
@@ -30,6 +30,39 @@ def generate_QPE_distribution(spectrum,population,J):
     for k in range(N):
         dist += population[k] * fejer_kernel.eval_Fejer_kernel(J,j_arr-spectrum[k])/J
     return dist
+
+
+def generate_QPE_sampling_ham(ham,Nsample,J):
+    ancilla = np.ceil(np.log2(J))
+    qr_ancilla = QuantumRegister(ancilla)
+    qr_eigenstate = QuantumRegister(np.log2(ham[0].shape[0]))
+    cr = ClassicalRegister(ancilla)
+    qc = QuantumCircuit(qr_ancilla, qr_eigenstate, cr)
+
+    qc.h(qr_ancilla)
+    qc.h(qr_eigenstate)
+    time_ev = expm(-2*np.pi*1j*ham)
+    for i in range(len(qr_ancilla)):
+        mat = np.linalg.matrix_power(time_ev, 2**(i))
+        controlled_U = UnitaryGate(mat).control(annotated="yes")
+        qc.append(controlled_U, qargs = [qr_ancilla[i]] + qr_eigenstate[:] )
+    qc.append(QFT(len(qr_ancilla)).inverse(), qr_ancilla)
+    qc.measure(qr_ancilla, cr)
+    
+    aer_sim = AerSimulator()
+    trans_qc = transpile(qc, aer_sim)
+    counts = aer_sim.run(trans_qc, shots = Nsample).result().get_counts()
+    
+    max_num = 0
+    binary_num = ''
+    for key in counts:
+        # print(key, counts[key])
+        if (counts[key] > max_num):
+            max_num = counts[key]
+            binary_num = key
+            
+    decimal_num = -int(binary_num, 2) / (2 ** (ancilla))
+    return decimal_num
 
 def get_estimated_ground_energy_rough(d,delta,spectrum,population,Nsample,Nbatch):
     
@@ -100,14 +133,14 @@ def generate_data_sim(Ham, t, Nsample, W = 'Re'):
     qr_eigenstate = QuantumRegister(np.log2(Ham[0].shape[0]))
     cr = ClassicalRegister(1)
     qc = QuantumCircuit(qr_ancilla, qr_eigenstate, cr)
-    qc.h(qr_ancilla[0])
+    qc.h(qr_ancilla)
     qc.h(qr_eigenstate)
     mat = expm(-1j*Ham*t)
     controlled_U = UnitaryGate(mat).control(annotated="yes")
     qc.append(controlled_U, qargs = [qr_ancilla[:]] + qr_eigenstate[:] )
     # if W = Imaginary
-    if W[0] == 'I': qc.sdg(qr_ancilla[0])
-    qc.h(qr_ancilla[0])
+    if W[0] == 'I': qc.sdg(qr_ancilla)
+    qc.h(qr_ancilla)
     qc.measure(qr_ancilla[0],cr[0])
     # print(qc)
     aer_sim = AerSimulator()
@@ -384,221 +417,221 @@ def qcels_smalloverlap(spectrum, population, T, NT, d, rel_gap, err_tol_rough, N
     return ground_energy_estimate_QCELS, total_time_all, max_time_all
 
 
-if __name__ == "__main__":
-    import scipy.io as sio
-    import numpy as np
-    from copy import deepcopy
-    from scipy.optimize import minimize
-    from matplotlib import pyplot as plt
-    from scipy.special import erf
-    from mpl_toolkits.mplot3d import Axes3D
-    import cmath
-    import matplotlib
-    import hubbard_1d
-    import quspin
-    import fejer_kernel
-    import fourier_filter
-    import generate_cdf
-    matplotlib.rcParams['font.size'] = 15
-    matplotlib.rcParams['lines.markersize'] = 10
+# if __name__ == "__main__":
+#     import scipy.io as sio
+#     import numpy as np
+#     from copy import deepcopy
+#     from scipy.optimize import minimize
+#     from matplotlib import pyplot as plt
+#     from scipy.special import erf
+#     from mpl_toolkits.mplot3d import Axes3D
+#     import cmath
+#     import matplotlib
+#     import hubbard_1d
+#     import quspin
+#     import fejer_kernel
+#     import fourier_filter
+#     import generate_cdf
+#     matplotlib.rcParams['font.size'] = 15
+#     matplotlib.rcParams['lines.markersize'] = 10
 
-    num_sites = 4
-    J = 1.0
-    U = 10.0
-    U0 = 0.0
-    mu = 0.0
-    N_up = num_sites // 2
-    N_down = num_sites - N_up
+#     num_sites = 4
+#     J = 1.0
+#     U = 10.0
+#     U0 = 0.0
+#     mu = 0.0
+#     N_up = num_sites // 2
+#     N_down = num_sites - N_up
     
-    num_eigenstates_max = 100
+#     num_eigenstates_max = 100
     
-    ham0 = hubbard_1d.generate_ham(num_sites, J, U0, mu, N_up, N_down)
-    ground_state_0 = ham0.eigsh(k=1,which="SA")[1][:,0]
+#     ham0 = hubbard_1d.generate_ham(num_sites, J, U0, mu, N_up, N_down)
+#     ground_state_0 = ham0.eigsh(k=1,which="SA")[1][:,0]
     
-    ham = hubbard_1d.generate_ham(num_sites, J, U, mu, N_up, N_down)
-    if( num_eigenstates_max > ham.shape[0] // 2):
-        eigenenergies, eigenstates = ham.eigh()
-    else:
-        eigenenergies, eigenstates = ham.eigsh(k=num_eigenstates_max,which="SA")
-    ground_state = eigenstates[:,0]
+#     ham = hubbard_1d.generate_ham(num_sites, J, U, mu, N_up, N_down)
+#     if( num_eigenstates_max > ham.shape[0] // 2):
+#         eigenenergies, eigenstates = ham.eigh()
+#     else:
+#         eigenenergies, eigenstates = ham.eigsh(k=num_eigenstates_max,which="SA")
+#     ground_state = eigenstates[:,0]
     
-    population_raw = np.abs(np.dot(eigenstates.conj().T, ground_state_0))**2
+#     population_raw = np.abs(np.dot(eigenstates.conj().T, ground_state_0))**2
     
-    plt.plot(eigenenergies,population_raw,'b-o');plt.show()
+#     plt.plot(eigenenergies,population_raw,'b-o');plt.show()
 
-    print("large overlap using multi-level QCELS")
-    p0_array = np.array([0.8]) 
-    T0 = 100
-    N_test_QCELS = 10  #number of QCELS test
-    N_QPE = 10  #number of QPE test
-    T_list_QCELS = 11+T0/2*(np.arange(N_test_QCELS))
-    T_list_QPE = 11+T0/2*(np.arange(N_QPE))
-    err_QCELS=np.zeros((len(p0_array),len(T_list_QCELS)))
-    err_QPE=np.zeros((len(p0_array),len(T_list_QPE)))
-    cost_list_avg_QCELS = np.zeros((len(p0_array),len(T_list_QCELS)))
-    cost_list_avg_QPE = np.zeros((len(p0_array),len(T_list_QPE)))
-    rate_success_QCELS=np.zeros((len(p0_array),len(T_list_QCELS)))
-    rate_success_QPE=np.zeros((len(p0_array),len(T_list_QPE)))
-    max_T_QCELS=np.zeros((len(p0_array),len(T_list_QCELS)))
-    Navg = 3 #number of trying
-    err_thres_hold=0.01
-    err_thres_hold_QPE=0.01
-    #-----------------------------    
-    for a1 in range(len(p0_array)):
-        p0=p0_array[a1]
-        n_success_QCELS= np.zeros(len(T_list_QCELS))
-        n_success_QPE= np.zeros(len(T_list_QPE))
-        for n_test in range(Navg):
-            print("For p0=",p0,"For N_test=",n_test+1)
-            spectrum, population = generate_spectrum_population(eigenenergies, 
-                    population_raw, [p0])
-            #------------------QCELS-----------------
-            Nsample=50
-            for ix in range(len(T_list_QCELS)):
-                T = T_list_QCELS[ix]
-                NT = 5
-                lambda_prior = spectrum[0]
-                ground_energy_estimate_QCELS, cost_list_avg_QCELS[a1,ix], max_T_QCELS[a1,ix] = \
-                        qcels_largeoverlap(spectrum, population, T, NT,
-                                Nsample, lambda_prior)
-                err_this_run_QCELS = np.abs(ground_energy_estimate_QCELS - spectrum[0])
-                err_QCELS[a1,ix] = err_QCELS[a1,ix]+np.abs(err_this_run_QCELS)
-                if np.abs(err_this_run_QCELS)<err_thres_hold:
-                    n_success_QCELS[ix]+=1
+#     print("large overlap using multi-level QCELS")
+#     p0_array = np.array([0.8]) 
+#     T0 = 100
+#     N_test_QCELS = 10  #number of QCELS test
+#     N_QPE = 10  #number of QPE test
+#     T_list_QCELS = 11+T0/2*(np.arange(N_test_QCELS))
+#     T_list_QPE = 11+T0/2*(np.arange(N_QPE))
+#     err_QCELS=np.zeros((len(p0_array),len(T_list_QCELS)))
+#     err_QPE=np.zeros((len(p0_array),len(T_list_QPE)))
+#     cost_list_avg_QCELS = np.zeros((len(p0_array),len(T_list_QCELS)))
+#     cost_list_avg_QPE = np.zeros((len(p0_array),len(T_list_QPE)))
+#     rate_success_QCELS=np.zeros((len(p0_array),len(T_list_QCELS)))
+#     rate_success_QPE=np.zeros((len(p0_array),len(T_list_QPE)))
+#     max_T_QCELS=np.zeros((len(p0_array),len(T_list_QCELS)))
+#     Navg = 3 #number of trying
+#     err_thres_hold=0.01
+#     err_thres_hold_QPE=0.01
+#     #-----------------------------    
+#     for a1 in range(len(p0_array)):
+#         p0=p0_array[a1]
+#         n_success_QCELS= np.zeros(len(T_list_QCELS))
+#         n_success_QPE= np.zeros(len(T_list_QPE))
+#         for n_test in range(Navg):
+#             print("For p0=",p0,"For N_test=",n_test+1)
+#             spectrum, population = generate_spectrum_population(eigenenergies, 
+#                     population_raw, [p0])
+#             #------------------QCELS-----------------
+#             Nsample=50
+#             for ix in range(len(T_list_QCELS)):
+#                 T = T_list_QCELS[ix]
+#                 NT = 5
+#                 lambda_prior = spectrum[0]
+#                 ground_energy_estimate_QCELS, cost_list_avg_QCELS[a1,ix], max_T_QCELS[a1,ix] = \
+#                         qcels_largeoverlap(spectrum, population, T, NT,
+#                                 Nsample, lambda_prior)
+#                 err_this_run_QCELS = np.abs(ground_energy_estimate_QCELS - spectrum[0])
+#                 err_QCELS[a1,ix] = err_QCELS[a1,ix]+np.abs(err_this_run_QCELS)
+#                 if np.abs(err_this_run_QCELS)<err_thres_hold:
+#                     n_success_QCELS[ix]+=1
            
-           # ----------------- QPE -----------------------
-            N_try_QPE=int(15*np.ceil(1.0/p0))
-            for ix in range(len(T_list_QPE)):
-                T = int(T_list_QPE[ix])
-                discrete_energies = 2*np.pi*np.arange(2*T)/(2*T) - np.pi 
-                dist = generate_QPE_distribution(spectrum,population,2*T)
-                samp = generate_cdf.draw_with_prob(dist,N_try_QPE)
-                j_min = samp.min()
-                ground_energy_estimate_QPE = discrete_energies[j_min]
-                err_this_run_QPE = np.abs(ground_energy_estimate_QPE-spectrum[0])
-                err_QPE[a1,ix] = err_QPE[a1,ix]+np.abs(err_this_run_QPE)
-                if np.abs(err_this_run_QPE)<err_thres_hold_QPE:
-                    n_success_QPE[ix]+=1
-                cost_list_avg_QPE[a1,ix] = T*N_try_QPE
-        rate_success_QCELS[a1,:] = n_success_QCELS[:]/Navg
-        rate_success_QPE[a1,:] = n_success_QPE[:]/Navg
-        err_QCELS[a1,:] = err_QCELS[a1,:]/Navg
-        err_QPE[a1,:] = err_QPE[a1,:]/Navg
-        cost_list_avg_QCELS[a1,:]=cost_list_avg_QCELS[a1,:]/Navg
+#            # ----------------- QPE -----------------------
+#             N_try_QPE=int(15*np.ceil(1.0/p0))
+#             for ix in range(len(T_list_QPE)):
+#                 T = int(T_list_QPE[ix])
+#                 discrete_energies = 2*np.pi*np.arange(2*T)/(2*T) - np.pi 
+#                 dist = generate_QPE_distribution(spectrum,population,2*T)
+#                 samp = generate_cdf.draw_with_prob(dist,N_try_QPE)
+#                 j_min = samp.min()
+#                 ground_energy_estimate_QPE = discrete_energies[j_min]
+#                 err_this_run_QPE = np.abs(ground_energy_estimate_QPE-spectrum[0])
+#                 err_QPE[a1,ix] = err_QPE[a1,ix]+np.abs(err_this_run_QPE)
+#                 if np.abs(err_this_run_QPE)<err_thres_hold_QPE:
+#                     n_success_QPE[ix]+=1
+#                 cost_list_avg_QPE[a1,ix] = T*N_try_QPE
+#         rate_success_QCELS[a1,:] = n_success_QCELS[:]/Navg
+#         rate_success_QPE[a1,:] = n_success_QPE[:]/Navg
+#         err_QCELS[a1,:] = err_QCELS[a1,:]/Navg
+#         err_QPE[a1,:] = err_QPE[a1,:]/Navg
+#         cost_list_avg_QCELS[a1,:]=cost_list_avg_QCELS[a1,:]/Navg
 
 
-    print('QCELS')
-    print(rate_success_QCELS)
-    print('QPE')
-    print(rate_success_QPE)    
-    plt.figure(figsize=(12,10))
-    plt.plot(T_list_QCELS,err_QCELS[0,:],linestyle="-.",marker="o",label="error of QCELS p_0=0.8")
-    plt.plot(T_list_QPE,err_QPE[0,:],linestyle="-.",marker="*",label="error of QPE p_0=0.8")
-    plt.xlabel("$T_{max}$",fontsize=35)
-    plt.ylabel("error($\epsilon$)",fontsize=35)
-    plt.xscale("log")
-    plt.yscale("log")
-    plt.legend()
-    plt.figure(figsize=(12,10))
-    plt.plot(cost_list_avg_QCELS[0,:],err_QCELS[0,:],linestyle="-.",marker="o",label="error of QCELS p_0=0.8")
-    plt.plot(cost_list_avg_QPE[0,:],err_QPE[0,:],linestyle="-.",marker="*",label="error of QPE p_0=0.8")
-    plt.xlabel("$T_{total}$",fontsize=35)
-    plt.ylabel("error($\epsilon$)",fontsize=35) 
-    plt.xscale("log")
-    plt.yscale("log")
-    plt.legend(fontsize=25)
-    plt.show()
+#     print('QCELS')
+#     print(rate_success_QCELS)
+#     print('QPE')
+#     print(rate_success_QPE)    
+#     plt.figure(figsize=(12,10))
+#     plt.plot(T_list_QCELS,err_QCELS[0,:],linestyle="-.",marker="o",label="error of QCELS p_0=0.8")
+#     plt.plot(T_list_QPE,err_QPE[0,:],linestyle="-.",marker="*",label="error of QPE p_0=0.8")
+#     plt.xlabel("$T_{max}$",fontsize=35)
+#     plt.ylabel("error($\epsilon$)",fontsize=35)
+#     plt.xscale("log")
+#     plt.yscale("log")
+#     plt.legend()
+#     plt.figure(figsize=(12,10))
+#     plt.plot(cost_list_avg_QCELS[0,:],err_QCELS[0,:],linestyle="-.",marker="o",label="error of QCELS p_0=0.8")
+#     plt.plot(cost_list_avg_QPE[0,:],err_QPE[0,:],linestyle="-.",marker="*",label="error of QPE p_0=0.8")
+#     plt.xlabel("$T_{total}$",fontsize=35)
+#     plt.ylabel("error($\epsilon$)",fontsize=35) 
+#     plt.xscale("log")
+#     plt.yscale("log")
+#     plt.legend(fontsize=25)
+#     plt.show()
 
 
-    #
-    print("small overlap using multi-level QCELS with filtered data")
-    p0_array=np.array([0.1]) #population
-    p1_array=np.array([0.025]) #population
-    #relative population=0.8
-    T0 = 2000
-    N_test_QCELS = 10  #number of QCELS test
-    N_QPE = 10  #number of QPE test
-    T_list_QCELS = 150+T0/4*(np.arange(N_test_QCELS))
-    T_list_QPE = 150+T0*7.5*(np.arange(N_QPE))
-    err_QCELS=np.zeros((len(p0_array),len(T_list_QCELS)))
-    err_QPE=np.zeros((len(p0_array),len(T_list_QPE)))
-    cost_list_avg_QCELS = np.zeros((len(p0_array),len(T_list_QCELS)))
-    cost_list_avg_QPE = np.zeros((len(p0_array),len(T_list_QPE)))
-    rate_success_QCELS=np.zeros((len(p0_array),len(T_list_QCELS)))
-    rate_success_QPE=np.zeros((len(p0_array),len(T_list_QPE)))
-    max_T_QCELS=np.zeros((len(p0_array),len(T_list_QCELS)))
-    Navg = 3 #number of trying
-    err_thres_hold=0.01
-    err_thres_hold_QPE=0.01
-    #-----------------------------    
-    for a1 in range(len(p0_array)):
-        p0=p0_array[a1]
-        p1=p1_array[a1]
-        n_success_QCELS= np.zeros(len(T_list_QCELS))
-        n_success_QPE= np.zeros(len(T_list_QPE))
-        for n_test in range(Navg):
-            print("For p0=",p0," p1=", p1, "For N_test=",n_test+1)
-            spectrum, population = generate_spectrum_population(eigenenergies, 
-                    population_raw, [p0,p1])
-            #------------------QCELS-----------------
-            # heuristic estimate of relative gap
-            rel_gap_idx = np.where(population>p0/2)[0][1] 
-            rel_gap = spectrum[rel_gap_idx]-spectrum[0]
-            d=int(20/rel_gap)
-            print("d=", d, "rel_gap = ", rel_gap)
-            Nsample_rough=int(500/p0**2*np.log(d))
-            Nsample=int(30/p0**2*np.log(d))
-            for ix in range(len(T_list_QCELS)):
-                T = T_list_QCELS[ix]
-                NT = 5
-                err_tol_rough=rel_gap/4
-                ground_energy_estimate_QCELS, cost_list_avg_QCELS[a1,ix], max_T_QCELS[a1,ix] = \
-                        qcels_smalloverlap(spectrum, population, T, NT, d, rel_gap, \
-                                        err_tol_rough, Nsample_rough, Nsample)
-                err_this_run_QCELS = np.abs(ground_energy_estimate_QCELS - spectrum[0])
-                err_QCELS[a1,ix] = err_QCELS[a1,ix]+np.abs(err_this_run_QCELS)
-                if np.abs(err_this_run_QCELS)<err_thres_hold:
-                    n_success_QCELS[ix]+=1
+#     #
+#     print("small overlap using multi-level QCELS with filtered data")
+#     p0_array=np.array([0.1]) #population
+#     p1_array=np.array([0.025]) #population
+#     #relative population=0.8
+#     T0 = 2000
+#     N_test_QCELS = 10  #number of QCELS test
+#     N_QPE = 10  #number of QPE test
+#     T_list_QCELS = 150+T0/4*(np.arange(N_test_QCELS))
+#     T_list_QPE = 150+T0*7.5*(np.arange(N_QPE))
+#     err_QCELS=np.zeros((len(p0_array),len(T_list_QCELS)))
+#     err_QPE=np.zeros((len(p0_array),len(T_list_QPE)))
+#     cost_list_avg_QCELS = np.zeros((len(p0_array),len(T_list_QCELS)))
+#     cost_list_avg_QPE = np.zeros((len(p0_array),len(T_list_QPE)))
+#     rate_success_QCELS=np.zeros((len(p0_array),len(T_list_QCELS)))
+#     rate_success_QPE=np.zeros((len(p0_array),len(T_list_QPE)))
+#     max_T_QCELS=np.zeros((len(p0_array),len(T_list_QCELS)))
+#     Navg = 3 #number of trying
+#     err_thres_hold=0.01
+#     err_thres_hold_QPE=0.01
+#     #-----------------------------    
+#     for a1 in range(len(p0_array)):
+#         p0=p0_array[a1]
+#         p1=p1_array[a1]
+#         n_success_QCELS= np.zeros(len(T_list_QCELS))
+#         n_success_QPE= np.zeros(len(T_list_QPE))
+#         for n_test in range(Navg):
+#             print("For p0=",p0," p1=", p1, "For N_test=",n_test+1)
+#             spectrum, population = generate_spectrum_population(eigenenergies, 
+#                     population_raw, [p0,p1])
+#             #------------------QCELS-----------------
+#             # heuristic estimate of relative gap
+#             rel_gap_idx = np.where(population>p0/2)[0][1] 
+#             rel_gap = spectrum[rel_gap_idx]-spectrum[0]
+#             d=int(20/rel_gap)
+#             print("d=", d, "rel_gap = ", rel_gap)
+#             Nsample_rough=int(500/p0**2*np.log(d))
+#             Nsample=int(30/p0**2*np.log(d))
+#             for ix in range(len(T_list_QCELS)):
+#                 T = T_list_QCELS[ix]
+#                 NT = 5
+#                 err_tol_rough=rel_gap/4
+#                 ground_energy_estimate_QCELS, cost_list_avg_QCELS[a1,ix], max_T_QCELS[a1,ix] = \
+#                         qcels_smalloverlap(spectrum, population, T, NT, d, rel_gap, \
+#                                         err_tol_rough, Nsample_rough, Nsample)
+#                 err_this_run_QCELS = np.abs(ground_energy_estimate_QCELS - spectrum[0])
+#                 err_QCELS[a1,ix] = err_QCELS[a1,ix]+np.abs(err_this_run_QCELS)
+#                 if np.abs(err_this_run_QCELS)<err_thres_hold:
+#                     n_success_QCELS[ix]+=1
            
-           # ----------------- QPE -----------------------
-            N_try_QPE=int(15*np.ceil(1.0/p0))
-            for ix in range(len(T_list_QPE)):
-                T = int(T_list_QPE[ix])
-                discrete_energies = 2*np.pi*np.arange(2*T)/(2*T) - np.pi
-                dist = generate_QPE_distribution(spectrum,population,2*T)
-                samp = generate_cdf.draw_with_prob(dist,N_try_QPE)
-                j_min = samp.min()
-                ground_energy_estimate_QPE = discrete_energies[j_min]
-                err_this_run_QPE = np.abs(ground_energy_estimate_QPE-spectrum[0])
-                err_QPE[a1,ix] = err_QPE[a1,ix]+np.abs(err_this_run_QPE)
-                if np.abs(err_this_run_QPE)<err_thres_hold_QPE:
-                    n_success_QPE[ix]+=1
-                cost_list_avg_QPE[a1,ix] = T*N_try_QPE
-        rate_success_QCELS[a1,:] = n_success_QCELS[:]/Navg
-        rate_success_QPE[a1,:] = n_success_QPE[:]/Navg
-        err_QCELS[a1,:] = err_QCELS[a1,:]/Navg
-        err_QPE[a1,:] = err_QPE[a1,:]/Navg
-        cost_list_avg_QCELS[a1,:]=cost_list_avg_QCELS[a1,:]/Navg
+#            # ----------------- QPE -----------------------
+#             N_try_QPE=int(15*np.ceil(1.0/p0))
+#             for ix in range(len(T_list_QPE)):
+#                 T = int(T_list_QPE[ix])
+#                 discrete_energies = 2*np.pi*np.arange(2*T)/(2*T) - np.pi
+#                 dist = generate_QPE_distribution(spectrum,population,2*T)
+#                 samp = generate_cdf.draw_with_prob(dist,N_try_QPE)
+#                 j_min = samp.min()
+#                 ground_energy_estimate_QPE = discrete_energies[j_min]
+#                 err_this_run_QPE = np.abs(ground_energy_estimate_QPE-spectrum[0])
+#                 err_QPE[a1,ix] = err_QPE[a1,ix]+np.abs(err_this_run_QPE)
+#                 if np.abs(err_this_run_QPE)<err_thres_hold_QPE:
+#                     n_success_QPE[ix]+=1
+#                 cost_list_avg_QPE[a1,ix] = T*N_try_QPE
+#         rate_success_QCELS[a1,:] = n_success_QCELS[:]/Navg
+#         rate_success_QPE[a1,:] = n_success_QPE[:]/Navg
+#         err_QCELS[a1,:] = err_QCELS[a1,:]/Navg
+#         err_QPE[a1,:] = err_QPE[a1,:]/Navg
+#         cost_list_avg_QCELS[a1,:]=cost_list_avg_QCELS[a1,:]/Navg
 
 
-    print('QCELS')
-    print(rate_success_QCELS)
-    print('QPE')
-    print(rate_success_QPE)    
-    plt.figure(figsize=(12,10))
-    plt.plot(T_list_QCELS,err_QCELS[0,:],linestyle="-.",marker="o",label="error of QCELS p_0=0.4,p_r=0.8")
-    plt.plot(T_list_QPE,err_QPE[0,:],linestyle="-.",marker="*",label="error of QPE p_0=0.4, p_r=0.8")
-    plt.xlabel("$T_{max}$",fontsize=35)
-    plt.ylabel("error($\epsilon$)",fontsize=35)
-    plt.xscale("log")
-    plt.yscale("log")
-    plt.legend()
-    plt.figure(figsize=(12,10))
-    plt.plot(cost_list_avg_QCELS[0,:],err_QCELS[0,:],linestyle="-.",marker="o",label="error of QCELS p_0=0.4, p_r=0.8")
-    plt.plot(cost_list_avg_QPE[0,:],err_QPE[0,:],linestyle="-.",marker="*",label="error of QPE p_0=0.4, p_r=0.8")
-    plt.xlabel("$T_{total}$",fontsize=35)
-    plt.ylabel("error($\epsilon$)",fontsize=35) 
-    plt.xscale("log")
-    plt.yscale("log")
-    plt.legend(fontsize=25)
-    plt.show()
+#     print('QCELS')
+#     print(rate_success_QCELS)
+#     print('QPE')
+#     print(rate_success_QPE)    
+#     plt.figure(figsize=(12,10))
+#     plt.plot(T_list_QCELS,err_QCELS[0,:],linestyle="-.",marker="o",label="error of QCELS p_0=0.4,p_r=0.8")
+#     plt.plot(T_list_QPE,err_QPE[0,:],linestyle="-.",marker="*",label="error of QPE p_0=0.4, p_r=0.8")
+#     plt.xlabel("$T_{max}$",fontsize=35)
+#     plt.ylabel("error($\epsilon$)",fontsize=35)
+#     plt.xscale("log")
+#     plt.yscale("log")
+#     plt.legend()
+#     plt.figure(figsize=(12,10))
+#     plt.plot(cost_list_avg_QCELS[0,:],err_QCELS[0,:],linestyle="-.",marker="o",label="error of QCELS p_0=0.4, p_r=0.8")
+#     plt.plot(cost_list_avg_QPE[0,:],err_QPE[0,:],linestyle="-.",marker="*",label="error of QPE p_0=0.4, p_r=0.8")
+#     plt.xlabel("$T_{total}$",fontsize=35)
+#     plt.ylabel("error($\epsilon$)",fontsize=35) 
+#     plt.xscale("log")
+#     plt.yscale("log")
+#     plt.legend(fontsize=25)
+#     plt.show()
