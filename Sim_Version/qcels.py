@@ -101,7 +101,7 @@ def generate_spectrum_population(eigenenergies, population, p):
 
 def qcels_opt_fun(x, ts, Z_est):
     NT = ts.shape[0]
-    Z_fit=np.zeros(NT,dtype = 'complex_')
+    Z_fit=np.zeros(NT,dtype = 'complex')
     Z_fit=(x[0]+1j*x[1])*np.exp(-1j*x[2]*ts)
     return (np.linalg.norm(Z_fit-Z_est)**2/NT)
 
@@ -137,7 +137,7 @@ def qcels_largeoverlap(spectrum, population, T, NT, Nsample, lambda_prior):
     max_time_all = 0.
 
     N_level=int(np.log2(T/NT))
-    Z_est=np.zeros(NT,dtype = 'complex_')
+    Z_est=np.zeros(NT,dtype = 'complex')
     tau=T/NT/(2**N_level)
     ts=tau*np.arange(NT)
     for i in range(NT):
@@ -157,7 +157,7 @@ def qcels_largeoverlap(spectrum, population, T, NT, Nsample, lambda_prior):
     lambda_max=ground_energy_estimate_QCELS+np.pi/(2*tau) 
     #Iteration
     for n_QCELS in range(N_level):
-        Z_est=np.zeros(NT,dtype = 'complex_')
+        Z_est=np.zeros(NT,dtype = 'complex')
         tau=T/NT/(2**(N_level-n_QCELS-1)) #generate a sequence of \tau_j
         ts=tau*np.arange(NT)
         for i in range(NT):
@@ -209,7 +209,7 @@ def qcels_smalloverlap(spectrum, population, T, NT, d, rel_gap, err_tol_rough, N
     max_time_all = max(max_time_all, max_time_prior)
     
     N_level=int(np.log2(T/NT))
-    Z_est=np.zeros(NT,dtype = 'complex_')
+    Z_est=np.zeros(NT,dtype = 'complex')
     tau=T/NT/(2**N_level)
     ts=tau*np.arange(NT)
     for i in range(NT):
@@ -229,7 +229,7 @@ def qcels_smalloverlap(spectrum, population, T, NT, d, rel_gap, err_tol_rough, N
     lambda_max=ground_energy_estimate_QCELS+np.pi/(2*tau)
     #Iteration
     for n_QCELS in range(N_level):
-        Z_est=np.zeros(NT,dtype = 'complex_')
+        Z_est=np.zeros(NT,dtype = 'complex')
         tau=T/NT/(2**(N_level-n_QCELS-1))
         ts=tau*np.arange(NT)
         for i in range(NT):
