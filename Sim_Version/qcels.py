@@ -384,8 +384,8 @@ if __name__ == "__main__":
     p1_array=np.array([0.025]) #population
     #relative population=0.8
     T0 = 2000
-    N_test_QCELS = 10  #number of QCELS test
-    N_QPE = 10  #number of QPE test
+    N_test_QCELS = 3  #number of QCELS test
+    N_QPE = 3  #number of QPE test
     T_list_QCELS = 150+T0/4*(np.arange(N_test_QCELS))
     T_list_QPE = 150+T0*7.5*(np.arange(N_QPE))
     err_QCELS=np.zeros((len(p0_array),len(T_list_QCELS)))
@@ -395,7 +395,7 @@ if __name__ == "__main__":
     rate_success_QCELS=np.zeros((len(p0_array),len(T_list_QCELS)))
     rate_success_QPE=np.zeros((len(p0_array),len(T_list_QPE)))
     max_T_QCELS=np.zeros((len(p0_array),len(T_list_QCELS)))
-    Navg = 3 #number of trying
+    Navg = 1 #number of trying
     err_thres_hold=0.01
     err_thres_hold_QPE=0.01
     #-----------------------------    
