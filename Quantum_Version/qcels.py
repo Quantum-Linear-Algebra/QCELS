@@ -524,17 +524,16 @@ if __name__ == "__main__":
                 if np.abs(err_this_run_QCELS)<err_thres_hold:
                     n_success_QCELS[ix]+=1
 
-        # ----------------- QPE -----------------------
-            N_try_QPE=int(15*np.ceil(1.0/p0)) #number of QPE samples each time``
+            # ----------------- QPE -----------------------
+            N_try_QPE=int(15*np.ceil(1.0/p0)) #number of QPE samples each time
+            print("N_try_QPE",N_try_QPE)
             for ix in range(len(T_list_QPE)):
                 T = int(T_list_QPE[ix])
-                discrete_energies = 2*np.pi*np.arange(2*T)/(2*T) - np.pi 
-                dist = generate_QPE_distribution(spectrum,population,2*T) #Generate QPE samples
-                samp = generate_cdf.draw_with_prob(dist,N_try_QPE)
-                j_min = samp.min()
-                ground_energy_estimate_QPE = discrete_energies[j_min]
+                ground_energy_estimate_QPE = generate_QPE_sampling_ham(ham, Nsample, 2*T)
+                print("ground_energy_estimate_QPE", ground_energy_estimate_QPE)
                 err_this_run_QPE = np.abs(ground_energy_estimate_QPE-spectrum[0])
                 err_QPE[a1,ix] = err_QPE[a1,ix]+np.abs(err_this_run_QPE)
+
                 if np.abs(err_this_run_QPE)<err_thres_hold_QPE:
                     n_success_QPE[ix]+=1
                 cost_list_avg_QPE[a1,ix] = T*N_try_QPE
@@ -543,9 +542,9 @@ if __name__ == "__main__":
         err_QCELS[a1,:] = err_QCELS[a1,:]/Navg
         err_QPE[a1,:] = err_QPE[a1,:]/Navg
         cost_list_avg_QCELS[a1,:]=cost_list_avg_QCELS[a1,:]/Navg
-    np.savez('Data/Q_Sim_result_TFIM_8sites_QPE',name1=rate_success_QPE,name2=T_list_QPE,name3=cost_list_avg_QPE,name4=err_QPE)
-    np.savez('Data/Q_Sim_result_TFIM_8sites_QCELS',name1=rate_success_QCELS,name2=max_T_QCELS,name3=cost_list_avg_QCELS,name4=err_QCELS)
-    np.savez('Data/Q_Sim_TFIM_8sites_data',name1=spectrum,name2=population,name3=ground_energy_estimate_QCELS.x[0],
+    np.savez('Data/Q_sim_result_TFIM_8sites_QPE',name1=rate_success_QPE,name2=T_list_QPE,name3=cost_list_avg_QPE,name4=err_QPE)
+    np.savez('Data/Q_sim_result_TFIM_8sites_QCELS',name1=rate_success_QCELS,name2=max_T_QCELS,name3=cost_list_avg_QCELS,name4=err_QCELS)
+    np.savez('Data/Q_sim_TFIM_8sites_data',name1=spectrum,name2=population,name3=ground_energy_estimate_QCELS.x[0],
             name4=ground_energy_estimate_QCELS.x[1],name5=ground_energy_estimate_QCELS.x[2])
 
 
