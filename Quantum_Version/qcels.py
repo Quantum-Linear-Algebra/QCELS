@@ -542,9 +542,9 @@ if __name__ == "__main__":
         err_QCELS[a1,:] = err_QCELS[a1,:]/Navg
         err_QPE[a1,:] = err_QPE[a1,:]/Navg
         cost_list_avg_QCELS[a1,:]=cost_list_avg_QCELS[a1,:]/Navg
-    np.savez('Data/Q_sim_result_TFIM_8sites_QPE',name1=rate_success_QPE,name2=T_list_QPE,name3=cost_list_avg_QPE,name4=err_QPE)
-    np.savez('Data/Q_sim_result_TFIM_8sites_QCELS',name1=rate_success_QCELS,name2=max_T_QCELS,name3=cost_list_avg_QCELS,name4=err_QCELS)
-    np.savez('Data/Q_sim_TFIM_8sites_data',name1=spectrum,name2=population,name3=ground_energy_estimate_QCELS.x[0],
+    np.savez('Data/Long_Q_Sim_result_TFIM_8sites_QPE',name1=rate_success_QPE,name2=T_list_QPE,name3=cost_list_avg_QPE,name4=err_QPE)
+    np.savez('Data/Long_Q_Sim_result_TFIM_8sites_QCELS',name1=rate_success_QCELS,name2=max_T_QCELS,name3=cost_list_avg_QCELS,name4=err_QCELS)
+    np.savez('Data/Long_Q_Sim_TFIM_8sites_data',name1=spectrum,name2=population,name3=ground_energy_estimate_QCELS.x[0],
             name4=ground_energy_estimate_QCELS.x[1],name5=ground_energy_estimate_QCELS.x[2])
 
 
