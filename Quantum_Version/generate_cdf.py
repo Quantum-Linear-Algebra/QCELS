@@ -34,10 +34,8 @@ def compute_prob_Y_(T,epsilon_list,popu_list,decay_rate=0.0):
 def draw_with_prob(measure,Nsample):
     L = measure.shape[0]
     cdf_measure = np.cumsum(measure)
-    print("cdf_measure", cdf_measure)
     normal_fac = cdf_measure[-1]
     U = np.random.rand(Nsample) * normal_fac
-    print("U", U)    
     j = np.searchsorted(cdf_measure,U)
     return j
     
