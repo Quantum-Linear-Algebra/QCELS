@@ -1,0 +1,32 @@
+For p0= 0.6 For N_test= 1  of  10
+START QCELS 1 of 10
+Z_est for timestep 1 = (1-2.4492935982947064e-16j)
+Z_est for timestep 2 = (0.76+0.6499230723708768j)
+Z_est for timestep 3 = (0.1+0.99498743710662j)
+Z_est for timestep 4 = (-0.5400000000000001+0.8416650165000324j)
+Z_est for timestep 5 = (-0.9400000000000001+0.34117444218463955j)
+Start iteration
+Iteration 1 of 1
+Z_est for timestep 1 = (1+0j)
+Z_est for timestep 2 = (-0.03999999999999999+0.9991996797437437j)
+Z_est for timestep 3 = (-0.9400000000000001+0.34117444218463955j)
+Z_est for timestep 4 = (0.040000000000000084-0.9991996797437437j)
+Z_est for timestep 5 = (0.98-0.19899748742132412j)
+END QCELS
+START QCELS 2 of 10
+Z_est for timestep 1 = (1-2.4492935982947064e-16j)
+Z_est for timestep 2 = (0.4999999999999999+0.8660254037844387j)
+Z_est for timestep 3 = (-0.6999999999999998+0.7141428428542852j)
+Z_est for timestep 4 = (-0.9400000000000001-0.3411744421846393j)
+Z_est for timestep 5 = (0.11999999999999975-0.9927738916792685j)
+Start iteration
+Iteration 1 of 3
+Z_est for timestep 1 = (1+0j)
+Z_est for timestep 2 = (-0.7199999999999999+0.693974062915899j)
+Z_est for timestep 3 = (-0.04000000000000045-0.9991996797437437j)
+Z_est for timestep 4 = (0.6000000000000001+0.7999999999999999j)
+Z_est for timestep 5 = (-1+1.2246467991473532e-16j)
+Iteration 2 of 3
+Z_est for timestep 1 = (1-2.4492935982947064e-16j)
+Z_est for timestep 2 = (0.07999999999999964-0.996794863550169j)
+Z_est for timestep 3 = (-1+1.2246467991473532e-16j)
