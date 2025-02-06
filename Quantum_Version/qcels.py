@@ -404,15 +404,13 @@ def run_qcels_largeoverlap(Backend, Ham, T, NT, Nsample, lambda_prior):
     total_time_all = 0.
     max_time_all = 0.
 
-    print("START QCELS")
-
-    N_level=int(np.log2(T/NT))
+    N_level=int(np.log2(T/NT)) # num of iterations log_2((maximal runtime)/(num of time steps))
     Z_est=np.zeros(NT,dtype = 'complex') #'complex_'
     tau=T/NT/(2**N_level)
     ts=tau*np.arange(NT)
     for i in range(NT):
-        Z_est[i], total_time, max_time=get_Z(Backend, Ham,ts[i],Nsample)
-        print("\t\t", Z_est[i])
+        Z_est[i], total_time, max_time=get_Z(Backend, Ham, ts[i], Nsample)
+        print("Z_est for timestep",i+1,"=", Z_est[i], flush = True)
         total_time_all += total_time
         max_time_all = max(max_time_all, max_time)
     #Step up and solve the optimization problem
@@ -425,17 +423,17 @@ def run_qcels_largeoverlap(Backend, Ham, T, NT, Nsample, lambda_prior):
     #Update the estimation interval
     lambda_min=ground_energy_estimate_QCELS-np.pi/(2*tau) 
     lambda_max=ground_energy_estimate_QCELS+np.pi/(2*tau) 
-    #Iteration
 
-    
-    print("\t", res.x)
+    #Iteration
+    print('Start iteration', flush = True)
     for n_QCELS in range(N_level):
+        print('Iteration', n_QCELS+1, 'of', N_level, flush = True)
         Z_est=np.zeros(NT,dtype = 'complex') # 'complex_'
         tau=T/NT/(2**(N_level-n_QCELS-1)) #generate a sequence of \tau_j
         ts=tau*np.arange(NT)
         for i in range(NT):
             Z_est[i], total_time, max_time=generate_Z_sim(Ham,ts[i],Nsample)
-            print("\t\t", Z_est[i])
+            print("Z_est for timestep",i+1,"=", Z_est[i], flush = True)
             total_time_all += total_time
             max_time_all = max(max_time_all, max_time)
         #Step up and solve the optimization problem
@@ -449,8 +447,6 @@ def run_qcels_largeoverlap(Backend, Ham, T, NT, Nsample, lambda_prior):
         #Update the estimation interval
         lambda_min=ground_energy_estimate_QCELS-np.pi/(2*tau) 
         lambda_max=ground_energy_estimate_QCELS+np.pi/(2*tau)
-        print("\t", res.x)
-    print("END QCELS")
 
     return res, total_time_all, max_time_all
 
