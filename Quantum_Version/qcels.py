@@ -294,7 +294,7 @@ def qcels_largeoverlap_ham(Ham, T, NT, Nsample, lambda_prior):
     ts=tau*np.arange(NT)
     for i in range(NT):
         Z_est[i], total_time, max_time=generate_Z_sim(Ham,ts[i],Nsample)
-        print("Z_est for timestep",i+1,"=", Z_est[i])
+        print("Z_est for timestep",i+1,"=", Z_est[i], flush = True)
         total_time_all += total_time
         max_time_all = max(max_time_all, max_time)
     #Step up and solve the optimization problem
@@ -309,15 +309,15 @@ def qcels_largeoverlap_ham(Ham, T, NT, Nsample, lambda_prior):
     lambda_max=ground_energy_estimate_QCELS+np.pi/(2*tau) 
 
     #Iteration
-    print('Start iteration')
+    print('Start iteration', flush = True)
     for n_QCELS in range(N_level):
-        print('Iteration', n_QCELS+1, 'of', N_level)
+        print('Iteration', n_QCELS+1, 'of', N_level, flush = True)
         Z_est=np.zeros(NT,dtype = 'complex') # 'complex_'
         tau=T/NT/(2**(N_level-n_QCELS-1)) #generate a sequence of \tau_j
         ts=tau*np.arange(NT)
         for i in range(NT):
             Z_est[i], total_time, max_time=generate_Z_sim(Ham,ts[i],Nsample)
-            print("Z_est for timestep",i+1,"=", Z_est[i])
+            print("Z_est for timestep",i+1,"=", Z_est[i], flush = True)
             total_time_all += total_time
             max_time_all = max(max_time_all, max_time)
         #Step up and solve the optimization problem
@@ -436,25 +436,16 @@ if __name__ == "__main__":
         arr_ham = ham.toarray()
         arr_ham = arr_ham.astype(np.complex128)
         n = len(arr_ham[0])
-        eigenenergies, eigenstates = ham.eigh(subset_by_index = (n-1,n-1))
+        eigenenergies, _ = ham.eigh(subset_by_index = (n-1,n-1))
         max_eigenvalue = eigenenergies[0]
         norm_ham = (np.pi/4)*arr_ham/max_eigenvalue
-        # rotate matrix so that it will be positive definite
-        # ham += 1/2*np.eye(2**eigen_bits)
-        
-        # convert revolutions to radians
-        # norm_ham *= 2*np.pi*1j
-        
-        # convert the rotations to complex numbers
-        # norm_ham = expm(norm_ham)
         return norm_ham
 
     num_sites = 8
     J = 1.0
     g = 4.0
 
-    num_eigenstates_max = 100
-
+    # calculate the ground state with g = 1
     ham0 = tfim_1d.generate_ham(num_sites, J, 1.0)
     ground_state_0 = ham0.eigsh(k=1,which="SA")[1][:,0]
 
@@ -463,69 +454,71 @@ if __name__ == "__main__":
     eigenenergies, eigenstates = ham.eigh()
     ground_state = eigenstates[:,0]
     population_raw = np.abs(np.dot(eigenstates.conj().T, ground_state_0))**2
-    plt.plot(eigenenergies, population_raw, 'b-o')
-    plt.show()
+    old_ham = ham
 
     # create modified spectrum
-    ham = modify_spectrum(ham)
+    ham = modify_spectrum(old_ham)
     eigenenergies, eigenstates = eigh(ham)
     ground_state = eigenstates[:,0]
     population = np.abs(np.dot(eigenstates.conj().T, ground_state_0))**2
-    plt.plot(eigenenergies, population, 'b-o')
-    plt.show()
 
-    print("large overlap using multi-level QCELS")
     p0_array            = np.array([0.6,0.8]) # initial overlap with the first eigenvector
-    T0                  = 100
-    N_test_QCELS        = 10 # number of different circuit depths for QCELS test
-    N_QPE               = 10 # number of different circuit depths for QCELS QPE test
-    T_list_QCELS        = 10+T0/2*(np.arange(N_test_QCELS)) # circuit depth for QCELS
-    T_list_QPE          = 10+T0*4*(np.arange(N_QPE)) # circuit depth for QPE
-    err_QCELS           = np.zeros((len(p0_array),len(T_list_QCELS)))
-    err_QPE             = np.zeros((len(p0_array),len(T_list_QPE)))
-    cost_list_avg_QCELS = np.zeros((len(p0_array),len(T_list_QCELS)))
-    cost_list_avg_QPE   = np.zeros((len(p0_array),len(T_list_QPE)))
-    rate_success_QCELS  = np.zeros((len(p0_array),len(T_list_QCELS)))
-    rate_success_QPE    = np.zeros((len(p0_array),len(T_list_QPE)))
-    max_T_QCELS         = np.zeros((len(p0_array),len(T_list_QCELS)))
+    N_test              = 10 # number of comparisions each trial
     Navg                = 10 # number of trials
-    err_thres_hold      = 0.01
-    err_thres_hold_QPE  = 0.01  
-    #-----------------------------    
+    err_threshold       = 0.01
+    T0                  = 100
+
+    # QCELS variables
+    T_list_QCELS        = 10+T0/2*(np.arange(N_test)) # circuit depth for QCELS
+    err_QCELS           = np.zeros((len(p0_array),N_test))
+    cost_list_avg_QCELS = np.zeros((len(p0_array),N_test))
+    rate_success_QCELS  = np.zeros((len(p0_array),N_test))
+    max_T_QCELS         = np.zeros((len(p0_array),N_test))
+
+    # QPE variables
+    T_list_QPE          = 10+T0*4*(np.arange(N_test)) # circuit depth for QPE
+    err_QPE             = np.zeros((len(p0_array),N_test))
+    cost_list_avg_QPE   = np.zeros((len(p0_array),N_test))
+    rate_success_QPE    = np.zeros((len(p0_array),N_test))
+
+    #-------------------------------------
     for a1 in range(len(p0_array)):
         p0=p0_array[a1]
-        n_success_QCELS= np.zeros(len(T_list_QCELS))
-        n_success_QPE= np.zeros(len(T_list_QPE))
+        n_success_QCELS= np.zeros(N_test)
+        n_success_QPE= np.zeros(N_test)
         for n_test in range(Navg):
-            print("For p0=",p0,"For N_test=",n_test+1)
+            print("For p0=",p0,"For N_test=",n_test+1, " of ", Navg)
             spectrum, population = generate_spectrum_population(eigenenergies, 
                     population_raw, [p0])
             #------------------QCELS-----------------
             Nsample=100 #number of samples for constructing the loss function
-            for ix in range(len(T_list_QCELS)):
+            for ix in range(N_test):
                 T = T_list_QCELS[ix]
                 NT = 5
                 lambda_prior = spectrum[0]
-                ground_energy_estimate_QCELS, cost_list_QCELS_this, max_T_QCELS_this = \
+                print("START QCELS", ix + 1, "of", N_test)
+                ground_energy_estimate_QCELS, cosT_depth_list_this, max_T_QCELS_this = \
                         qcels_largeoverlap_ham(ham, T, NT, Nsample, lambda_prior)
+                print("END QCELS")
                 err_this_run_QCELS = np.abs(ground_energy_estimate_QCELS.x[2] - lambda_prior)
                 err_QCELS[a1,ix] = err_QCELS[a1,ix]+np.abs(err_this_run_QCELS)
-                cost_list_avg_QCELS[a1,ix]=cost_list_avg_QCELS[a1,ix]+cost_list_QCELS_this
+                cost_list_avg_QCELS[a1,ix]=cost_list_avg_QCELS[a1,ix]+cosT_depth_list_this
                 max_T_QCELS[a1,ix]=max(max_T_QCELS[a1,ix],max_T_QCELS_this)
-                if np.abs(err_this_run_QCELS)<err_thres_hold:
+                if np.abs(err_this_run_QCELS)<err_threshold:
                     n_success_QCELS[ix]+=1
 
-            # ----------------- QPE -----------------------
+        # ----------------- QPE -----------------------
             N_try_QPE=int(15*np.ceil(1.0/p0)) #number of QPE samples each time
-            print("N_try_QPE",N_try_QPE)
-            for ix in range(len(T_list_QPE)):
+            for ix in range(N_test):
                 T = int(T_list_QPE[ix])
+                print("START QPE", ix + 1, "of", N_test)
                 ground_energy_estimate_QPE = generate_QPE_sampling_ham(ham, Nsample, 2*T)
-                print("ground_energy_estimate_QPE", ground_energy_estimate_QPE)
-                err_this_run_QPE = np.abs(ground_energy_estimate_QPE-spectrum[0])
-                err_QPE[a1,ix] = err_QPE[a1,ix]+np.abs(err_this_run_QPE)
+                print("Estimated ground state energy =", ground_energy_estimate_QPE)
+                print("END QPE")
+                err_this_ruN_test = np.abs(ground_energy_estimate_QPE-spectrum[0])
+                err_QPE[a1,ix] = err_QPE[a1,ix]+np.abs(err_this_ruN_test)
 
-                if np.abs(err_this_run_QPE)<err_thres_hold_QPE:
+                if np.abs(err_this_ruN_test)<err_threshold:
                     n_success_QPE[ix]+=1
                 cost_list_avg_QPE[a1,ix] = T*N_try_QPE
         rate_success_QCELS[a1,:] = n_success_QCELS[:]/Navg
@@ -533,6 +526,7 @@ if __name__ == "__main__":
         err_QCELS[a1,:] = err_QCELS[a1,:]/Navg
         err_QPE[a1,:] = err_QPE[a1,:]/Navg
         cost_list_avg_QCELS[a1,:]=cost_list_avg_QCELS[a1,:]/Navg
+        print('', flush = True)
     np.savez('Data/Long_Q_Sim_result_TFIM_8sites_QPE',name1=rate_success_QPE,name2=T_list_QPE,name3=cost_list_avg_QPE,name4=err_QPE)
     np.savez('Data/Long_Q_Sim_result_TFIM_8sites_QCELS',name1=rate_success_QCELS,name2=max_T_QCELS,name3=cost_list_avg_QCELS,name4=err_QCELS)
     np.savez('Data/Long_Q_Sim_TFIM_8sites_data',name1=spectrum,name2=population,name3=ground_energy_estimate_QCELS.x[0],
