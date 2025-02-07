@@ -252,7 +252,8 @@ def qcels_opt(ts, Z_est, x0, bounds = None, method = 'SLSQP'):
     return res
 
 
-def qcels_largeoverlap(spectrum, population, T, NT, Nsample, lambda_prior):
+# method has been modified to allow computation for THEORY, SIMULATION, and REAL HARDWARE
+def qcels_largeoverlap(T, NT, Nsample, lambda_prior, computation_type = 'THEORY', spectrum=[], population=[], ham = [], backend=None):
     """Multi-level QCELS for a system with a large initial overlap.
 
     Description: The code of using Multi-level QCELS to estimate the ground state energy for a systems with a large initial overlap
@@ -272,15 +273,23 @@ def qcels_largeoverlap(spectrum, population, T, NT, Nsample, lambda_prior):
     total_time_all = 0.
     max_time_all = 0.
 
+    def get_data():
+        if computation_type[0].upper() == 'T':
+            result = generate_Z_est(spectrum,population,ts[i],Nsample)
+        if computation_type[0].upper() == 'S':
+            result = generate_Z_sim(ham,ts[i],Nsample)
+        if computation_type[0].upper() == 'R':
+            result = get_Z(backend, ham,ts[i],Nsample)
+        return result
+
     N_level=int(np.log2(T/NT))
     Z_est=np.zeros(NT,dtype = 'complex') #'complex_'
     tau=T/NT/(2**N_level)
     ts=tau*np.arange(NT)
-    print("\t\t\tPreprocessing")
+    print("      Preprocessing")
     for i in range(NT):
-        Z_est[i], total_time, max_time=generate_Z_est(
-                spectrum,population,ts[i],Nsample) #Approximate <\psi|\exp(-itH)|\psi> using Hadmard test
-        print("\t\t\t\tZ_est for timestep",i+1,"=", Z_est[i])
+        Z_est[i], total_time, max_time = get_data()
+        print("        Z_est for timestep",i+1,"=", Z_est[i])
         total_time_all += total_time
         max_time_all = max(max_time_all, max_time)
     #Step up and solve the optimization problem
@@ -294,14 +303,13 @@ def qcels_largeoverlap(spectrum, population, T, NT, Nsample, lambda_prior):
     lambda_min=ground_energy_estimate_QCELS-np.pi/(2*tau) 
     lambda_max=ground_energy_estimate_QCELS+np.pi/(2*tau) 
     for n_QCELS in range(N_level):
-        print('\t\t\tStarting Iteration', "("+str(n_QCELS+1)+'/'+str(N_level)+")")
+        print('      Starting Iteration', "("+str(n_QCELS+1)+'/'+str(N_level)+")")
         Z_est=np.zeros(NT,dtype = 'complex') # 'complex_'
         tau=T/NT/(2**(N_level-n_QCELS-1)) #generate a sequence of \tau_j
         ts=tau*np.arange(NT)
         for i in range(NT):
-            Z_est[i], total_time, max_time=generate_Z_est(
-                    spectrum,population,ts[i],Nsample) #Approximate <\psi|\exp(-itH)|\psi> using Hadmard test
-            print("\t\t\t\tZ_est for timestep",i+1,"=", Z_est[i])
+            Z_est[i], total_time, max_time = get_data()
+            print("        Z_est for timestep",i+1,"=", Z_est[i])
             total_time_all += total_time
             max_time_all = max(max_time_all, max_time)
         #Step up and solve the optimization problem
@@ -315,141 +323,8 @@ def qcels_largeoverlap(spectrum, population, T, NT, Nsample, lambda_prior):
         #Update the estimation interval
         lambda_min=ground_energy_estimate_QCELS-np.pi/(2*tau) 
         lambda_max=ground_energy_estimate_QCELS+np.pi/(2*tau) 
-    print("\t\t\tFinished Iterations")
+    print("      Finished Iterations")
     return res, total_time_all, max_time_all
-
-def qcels_largeoverlap_ham(Ham, T, NT, Nsample, lambda_prior):
-    """Multi-level QCELS for a system with a large initial overlap.
-
-    Description: The code of using Multi-level QCELS to estimate the ground state energy for a systems with a large initial overlap
-
-    Args: eigenvalues of the Hamiltonian: spectrum; 
-    overlaps between the initial state and eigenvectors: population; 
-    the depth for generating the data set: T; 
-    number of data pairs: NT; 
-    number of samples: Nsample; 
-    initial guess of \lambda_0: lambda_prior
-
-    Returns: an estimation of \lambda_0; 
-    maximal evolution time T_{max}; 
-    total evolution time T_{total}
-
-    """
-    total_time_all = 0.
-    max_time_all = 0.
-
-    N_level=int(np.log2(T/NT)) # num of iterations log_2((maximal runtime)/(num of time steps))
-    Z_est=np.zeros(NT,dtype = 'complex') #'complex_'
-    tau=T/NT/(2**N_level)
-    ts=tau*np.arange(NT)
-    for i in range(NT):
-        Z_est[i], total_time, max_time=generate_Z_sim(Ham,ts[i],Nsample)
-        print("Z_est for timestep",i+1,"=", Z_est[i], flush = True)
-        total_time_all += total_time
-        max_time_all = max(max_time_all, max_time)
-    #Step up and solve the optimization problem
-    x0=np.array((0.5,0,lambda_prior))
-    res = qcels_opt(ts, Z_est, x0)#Solve the optimization problem
-    #Update initial guess for next iteration
-    ground_coefficient_QCELS=res.x[0]
-    ground_coefficient_QCELS2=res.x[1]
-    ground_energy_estimate_QCELS=res.x[2]
-    #Update the estimation interval
-    lambda_min=ground_energy_estimate_QCELS-np.pi/(2*tau) 
-    lambda_max=ground_energy_estimate_QCELS+np.pi/(2*tau) 
-
-    #Iteration
-    print('Start iteration', flush = True)
-    for n_QCELS in range(N_level):
-        print('Iteration', n_QCELS+1, 'of', N_level, flush = True)
-        Z_est=np.zeros(NT,dtype = 'complex') # 'complex_'
-        tau=T/NT/(2**(N_level-n_QCELS-1)) #generate a sequence of \tau_j
-        ts=tau*np.arange(NT)
-        for i in range(NT):
-            Z_est[i], total_time, max_time=generate_Z_sim(Ham,ts[i],Nsample)
-            print("Z_est for timestep",i+1,"=", Z_est[i], flush = True)
-            total_time_all += total_time
-            max_time_all = max(max_time_all, max_time)
-        #Step up and solve the optimization problem
-        x0=np.array((ground_coefficient_QCELS,ground_coefficient_QCELS2,ground_energy_estimate_QCELS))
-        bnds=((-np.inf,np.inf),(-np.inf,np.inf),(lambda_min,lambda_max)) 
-        res = qcels_opt(ts, Z_est, x0, bounds=bnds)#Solve the optimization problem
-        #Update initial guess for next iteration
-        ground_coefficient_QCELS=res.x[0]
-        ground_coefficient_QCELS2=res.x[1]
-        ground_energy_estimate_QCELS=res.x[2]
-        #Update the estimation interval
-        lambda_min=ground_energy_estimate_QCELS-np.pi/(2*tau) 
-        lambda_max=ground_energy_estimate_QCELS+np.pi/(2*tau)
-
-    return res, total_time_all, max_time_all
-
-def run_qcels_largeoverlap(Backend, Ham, T, NT, Nsample, lambda_prior):
-    """Multi-level QCELS for a system with a large initial overlap.
-
-    Description: The code of using Multi-level QCELS to estimate the ground state energy for a systems with a large initial overlap
-
-    Args: eigenvalues of the Hamiltonian: spectrum; 
-    overlaps between the initial state and eigenvectors: population; 
-    the depth for generating the data set: T; 
-    number of data pairs: NT; 
-    number of samples: Nsample; 
-    initial guess of \lambda_0: lambda_prior
-
-    Returns: an estimation of \lambda_0; 
-    maximal evolution time T_{max}; 
-    total evolution time T_{total}
-
-    """
-    total_time_all = 0.
-    max_time_all = 0.
-
-    N_level=int(np.log2(T/NT)) # num of iterations log_2((maximal runtime)/(num of time steps))
-    Z_est=np.zeros(NT,dtype = 'complex') #'complex_'
-    tau=T/NT/(2**N_level)
-    ts=tau*np.arange(NT)
-    for i in range(NT):
-        Z_est[i], total_time, max_time=get_Z(Backend, Ham, ts[i], Nsample)
-        print("Z_est for timestep",i+1,"=", Z_est[i], flush = True)
-        total_time_all += total_time
-        max_time_all = max(max_time_all, max_time)
-    #Step up and solve the optimization problem
-    x0=np.array((0.5,0,lambda_prior))
-    res = qcels_opt(ts, Z_est, x0)#Solve the optimization problem
-    #Update initial guess for next iteration
-    ground_coefficient_QCELS=res.x[0]
-    ground_coefficient_QCELS2=res.x[1]
-    ground_energy_estimate_QCELS=res.x[2]
-    #Update the estimation interval
-    lambda_min=ground_energy_estimate_QCELS-np.pi/(2*tau) 
-    lambda_max=ground_energy_estimate_QCELS+np.pi/(2*tau) 
-
-    #Iteration
-    print('Start iteration', flush = True)
-    for n_QCELS in range(N_level):
-        print('Iteration', n_QCELS+1, 'of', N_level, flush = True)
-        Z_est=np.zeros(NT,dtype = 'complex') # 'complex_'
-        tau=T/NT/(2**(N_level-n_QCELS-1)) #generate a sequence of \tau_j
-        ts=tau*np.arange(NT)
-        for i in range(NT):
-            Z_est[i], total_time, max_time=generate_Z_sim(Ham,ts[i],Nsample)
-            print("Z_est for timestep",i+1,"=", Z_est[i], flush = True)
-            total_time_all += total_time
-            max_time_all = max(max_time_all, max_time)
-        #Step up and solve the optimization problem
-        x0=np.array((ground_coefficient_QCELS,ground_coefficient_QCELS2,ground_energy_estimate_QCELS))
-        bnds=((-np.inf,np.inf),(-np.inf,np.inf),(lambda_min,lambda_max)) 
-        res = qcels_opt(ts, Z_est, x0, bounds=bnds)#Solve the optimization problem
-        #Update initial guess for next iteration
-        ground_coefficient_QCELS=res.x[0]
-        ground_coefficient_QCELS2=res.x[1]
-        ground_energy_estimate_QCELS=res.x[2]
-        #Update the estimation interval
-        lambda_min=ground_energy_estimate_QCELS-np.pi/(2*tau) 
-        lambda_max=ground_energy_estimate_QCELS+np.pi/(2*tau)
-
-    return res, total_time_all, max_time_all
-
 
 def qcels_smalloverlap(spectrum, population, T, NT, d, rel_gap, err_tol_rough, Nsample_rough, Nsample):
     """Multi-level QCELS with a filtered data set for a system with a small initial overlap.
