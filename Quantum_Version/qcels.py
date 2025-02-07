@@ -276,10 +276,11 @@ def qcels_largeoverlap(spectrum, population, T, NT, Nsample, lambda_prior):
     Z_est=np.zeros(NT,dtype = 'complex') #'complex_'
     tau=T/NT/(2**N_level)
     ts=tau*np.arange(NT)
+    print("\t\t\tPreprocessing")
     for i in range(NT):
         Z_est[i], total_time, max_time=generate_Z_est(
                 spectrum,population,ts[i],Nsample) #Approximate <\psi|\exp(-itH)|\psi> using Hadmard test
-        print("Z_est for timestep",i+1,"=", Z_est[i])
+        print("\t\t\t\tZ_est for timestep",i+1,"=", Z_est[i])
         total_time_all += total_time
         max_time_all = max(max_time_all, max_time)
     #Step up and solve the optimization problem
@@ -292,17 +293,15 @@ def qcels_largeoverlap(spectrum, population, T, NT, Nsample, lambda_prior):
     #Update the estimation interval
     lambda_min=ground_energy_estimate_QCELS-np.pi/(2*tau) 
     lambda_max=ground_energy_estimate_QCELS+np.pi/(2*tau) 
-    #Iteration
-    print('Start Iteration')
     for n_QCELS in range(N_level):
-        print('Iteration', n_QCELS+1, 'of', N_level)
+        print('\t\t\tStarting Iteration', "("+str(n_QCELS+1)+'/'+str(N_level)+")")
         Z_est=np.zeros(NT,dtype = 'complex') # 'complex_'
         tau=T/NT/(2**(N_level-n_QCELS-1)) #generate a sequence of \tau_j
         ts=tau*np.arange(NT)
         for i in range(NT):
             Z_est[i], total_time, max_time=generate_Z_est(
                     spectrum,population,ts[i],Nsample) #Approximate <\psi|\exp(-itH)|\psi> using Hadmard test
-            print("Z_est for timestep",i+1,"=", Z_est[i])
+            print("\t\t\t\tZ_est for timestep",i+1,"=", Z_est[i])
             total_time_all += total_time
             max_time_all = max(max_time_all, max_time)
         #Step up and solve the optimization problem
@@ -316,6 +315,7 @@ def qcels_largeoverlap(spectrum, population, T, NT, Nsample, lambda_prior):
         #Update the estimation interval
         lambda_min=ground_energy_estimate_QCELS-np.pi/(2*tau) 
         lambda_max=ground_energy_estimate_QCELS+np.pi/(2*tau) 
+    print("\t\t\tFinished Iterations")
     return res, total_time_all, max_time_all
 
 def qcels_largeoverlap_ham(Ham, T, NT, Nsample, lambda_prior):
