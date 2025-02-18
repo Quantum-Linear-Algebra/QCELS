@@ -23,6 +23,9 @@ from qiskit_ibm_runtime import SamplerV2 as Sampler
 from qiskit.circuit.library import UnitaryGate, QFT
 from scipy.linalg import expm
 
+def initial_state_angle(p):
+    return 2 * np.arccos((np.sqrt(2*p) + np.sqrt(2 * (1 - p)))/2)
+
 
 def generate_QPE_distribution(spectrum,population,J):
     N = len(spectrum)
@@ -33,15 +36,16 @@ def generate_QPE_distribution(spectrum,population,J):
     return dist
 
 
-def generate_QPE_sampling_ham(ham,Nsample,J):
-    ancilla = np.ceil(np.log2(J))
-    qr_ancilla = QuantumRegister(ancilla)
+def generate_QPE_sampling_ham(ham,Nsample,T, p0):
+    print('QPE depth', T)
+    qr_ancilla = QuantumRegister(T)
     qr_eigenstate = QuantumRegister(np.log2(ham[0].shape[0]))
-    cr = ClassicalRegister(ancilla)
+    cr = ClassicalRegister(T)
     qc = QuantumCircuit(qr_ancilla, qr_eigenstate, cr)
 
     qc.h(qr_ancilla)
-    qc.h(qr_eigenstate)
+    #qc.h(qr_eigenstate)
+    qc.ry(initial_state_angle(p0), qr_eigenstate)
     time_ev = expm(-2*np.pi*1j*ham)
     for i in range(len(qr_ancilla)):
         mat = np.linalg.matrix_power(time_ev, 2**(i))
@@ -62,7 +66,7 @@ def generate_QPE_sampling_ham(ham,Nsample,J):
             max_num = counts[key]
             binary_num = key
             
-    decimal_num = -int(binary_num, 2) / (2 ** (ancilla))
+    decimal_num = -int(binary_num, 2) / (2 ** (T))
     return decimal_num
 
 def get_estimated_ground_energy_rough(d,delta,spectrum,population,Nsample,Nbatch):
@@ -128,13 +132,14 @@ def generate_Z_est(spectrum,population,t,Nsample):
     total_time = t * Nsample
     return Z_est, total_time, max_time 
     
-def generate_data_sim(Ham, t, Nsample, W = 'Re'):
+def generate_data_sim(Ham, t, Nsample, W = 'Re', p0 = 1):
     qr_ancilla = QuantumRegister(1)
     qr_eigenstate = QuantumRegister(np.log2(Ham[0].shape[0]))
     cr = ClassicalRegister(1)
     qc = QuantumCircuit(qr_ancilla, qr_eigenstate, cr)
     qc.h(qr_ancilla)
-    qc.h(qr_eigenstate)
+    #qc.h(qr_eigenstate)
+    qc.ry(initial_state_angle(p0), qr_eigenstate)
     mat = expm(-1j*Ham*t)
     controlled_U = UnitaryGate(mat).control(annotated="yes")
     qc.append(controlled_U, qargs = [qr_ancilla[:]] + qr_eigenstate[:] )
@@ -155,7 +160,8 @@ def generate_HT_circuit(Backend, Ham, t, Nsample, W = 'Re'):
     cr = ClassicalRegister(1)
     qc = QuantumCircuit(qr_ancilla, qr_eigenstate, cr)
     qc.h(qr_ancilla)
-    qc.h(qr_eigenstate)
+    #qc.h(qr_eigenstate)
+    qc.ry(initial_state_angle(p), qr_eigenstate)
     mat = expm(-1j*Ham*t)
     controlled_U = UnitaryGate(mat).control(annotated="yes")
     qc.append(controlled_U, qargs = [qr_ancilla[:]] + qr_eigenstate[:] )
@@ -166,11 +172,11 @@ def generate_HT_circuit(Backend, Ham, t, Nsample, W = 'Re'):
     trans_qc = transpile(qc, Backend)
     return trans_qc
 
-def generate_Z_sim(Ham, t, Nsample):
+def generate_Z_sim(Ham, t, Nsample, p0 = 1):
     # print("\tstarted Re Hadamard test")
-    countsRe = generate_data_sim(Ham, t, Nsample, W = 'Re')    
+    countsRe = generate_data_sim(Ham, t, Nsample, W = 'Re', p0 = p0)    
     # print("\tstarted Im Hadamard test")
-    countsIm = generate_data_sim(Ham, t, Nsample, W = 'Im')
+    countsIm = generate_data_sim(Ham, t, Nsample, W = 'Im', p0 = p0)
     # print("\tended Hadamard tests")
 
     
@@ -200,10 +206,9 @@ def get_Z(Backend, Ham, t, Nsample):
 
     sampler = Sampler(Backend)
     results = sampler.run([circuitRe, circuitIm], shots = Nsample).result()
-    print(results[0])
 
-    countsRe = results[0].data['c'].get_counts()
-    countsIm = results[1].data['c'].get_counts()
+    countsRe = results[0].data['c2'].get_counts()
+    countsIm = results[1].data['c3'].get_counts()
     
     re_p0 = im_p0 = 0
     if countsRe.get('0') is not None:
@@ -229,7 +234,7 @@ def get_Z(Backend, Ham, t, Nsample):
 def generate_spectrum_population(eigenenergies, population, p):
     
     p = np.array(p)
-    spectrum = eigenenergies * 0.25*np.pi/np.max(np.abs(eigenenergies))#normalize the spectrum
+    spectrum = eigenenergies * (1/4) / np.max(np.abs(eigenenergies))#normalize the spectrum
     q = population
     num_p = p.shape[0]
     q[0:num_p] = p/(1-np.sum(p))*np.sum(q[num_p:])
@@ -253,7 +258,7 @@ def qcels_opt(ts, Z_est, x0, bounds = None, method = 'SLSQP'):
 
 
 # method has been modified to allow computation for THEORY, SIMULATION, and REAL HARDWARE
-def qcels_largeoverlap(T, NT, Nsample, lambda_prior, computation_type = 'THEORY', spectrum=[], population=[], ham = [], backend=None):
+def qcels_largeoverlap(T, NT, Nsample, lambda_prior, computation_type = 'THEORY', spectrum=[], population=[], ham = [], backend=None, p0 = 1):
     """Multi-level QCELS for a system with a large initial overlap.
 
     Description: The code of using Multi-level QCELS to estimate the ground state energy for a systems with a large initial overlap
@@ -277,12 +282,13 @@ def qcels_largeoverlap(T, NT, Nsample, lambda_prior, computation_type = 'THEORY'
         if computation_type[0].upper() == 'T':
             result = generate_Z_est(spectrum,population,ts[i],Nsample)
         if computation_type[0].upper() == 'S':
-            result = generate_Z_sim(ham,ts[i],Nsample)
+            result = generate_Z_sim(ham,ts[i],Nsample,p0)
         if computation_type[0].upper() == 'R':
             result = get_Z(backend, ham,ts[i],Nsample)
         return result
 
     N_level=int(np.log2(T/NT))
+    #N_level = T
     Z_est=np.zeros(NT,dtype = 'complex') #'complex_'
     tau=T/NT/(2**N_level)
     ts=tau*np.arange(NT)
