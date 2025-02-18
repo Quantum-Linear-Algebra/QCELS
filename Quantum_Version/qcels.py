@@ -5,7 +5,6 @@ estimate the ground-state energy with reduced circuit depth.
 
 Last revision: 11/22/2022
 """
-
 import scipy.io as sio
 import numpy as np
 from copy import deepcopy
@@ -22,6 +21,8 @@ from qiskit.circuit import QuantumCircuit, QuantumRegister, ClassicalRegister
 from qiskit_ibm_runtime import SamplerV2 as Sampler
 from qiskit.circuit.library import UnitaryGate, QFT
 from scipy.linalg import expm
+
+ham_shift = np.pi/4
 
 def initial_state_angle(p):
     return 2 * np.arccos((np.sqrt(2*p) + np.sqrt(2 * (1 - p)))/2)
@@ -234,7 +235,7 @@ def get_Z(Backend, Ham, t, Nsample):
 def generate_spectrum_population(eigenenergies, population, p):
     
     p = np.array(p)
-    spectrum = eigenenergies * (1/4) / np.max(np.abs(eigenenergies))#normalize the spectrum
+    spectrum = eigenenergies * (ham_shift) / np.max(np.abs(eigenenergies))#normalize the spectrum
     q = population
     num_p = p.shape[0]
     q[0:num_p] = p/(1-np.sum(p))*np.sum(q[num_p:])
