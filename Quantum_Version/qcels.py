@@ -38,7 +38,7 @@ def generate_QPE_distribution(spectrum,population,J):
 
 
 def generate_QPE_sampling_ham(ham,Nsample,T, p0):
-    print('QPE depth', T)
+    T = np.ceil(np.log2(T))
     qr_ancilla = QuantumRegister(T)
     qr_eigenstate = QuantumRegister(np.log2(ham[0].shape[0]))
     cr = ClassicalRegister(T)
@@ -155,14 +155,14 @@ def generate_data_sim(Ham, t, Nsample, W = 'Re', p0 = 1):
     # print("\t\tget counts")
     return counts
 
-def generate_HT_circuit(Backend, Ham, t, Nsample, W = 'Re'):
+def generate_HT_circuit(Backend, Ham, t, Nsample, W = 'Re', p0 = 1):
     qr_ancilla = QuantumRegister(1)
     qr_eigenstate = QuantumRegister(np.log2(Ham[0].shape[0]))
     cr = ClassicalRegister(1)
     qc = QuantumCircuit(qr_ancilla, qr_eigenstate, cr)
     qc.h(qr_ancilla)
     #qc.h(qr_eigenstate)
-    qc.ry(initial_state_angle(p), qr_eigenstate)
+    qc.ry(initial_state_angle(p0), qr_eigenstate)
     mat = expm(-1j*Ham*t)
     controlled_U = UnitaryGate(mat).control(annotated="yes")
     qc.append(controlled_U, qargs = [qr_ancilla[:]] + qr_eigenstate[:] )
@@ -201,9 +201,9 @@ def generate_Z_sim(Ham, t, Nsample, p0 = 1):
     total_time = t * Nsample
     return Z_est, total_time, max_time
 
-def get_Z(Backend, Ham, t, Nsample):
-    circuitRe = generate_HT_circuit(Backend, Ham, t, Nsample, W = 'Re')
-    circuitIm = generate_HT_circuit(Backend, Ham, t, Nsample, W = 'Im') 
+def get_Z(Backend, Ham, t, Nsample, p0):
+    circuitRe = generate_HT_circuit(Backend, Ham, t, Nsample, W = 'Re', p0 = p0)
+    circuitIm = generate_HT_circuit(Backend, Ham, t, Nsample, W = 'Im', p0 = p0) 
 
     sampler = Sampler(Backend)
     results = sampler.run([circuitRe, circuitIm], shots = Nsample).result()
@@ -285,7 +285,7 @@ def qcels_largeoverlap(T, NT, Nsample, lambda_prior, computation_type = 'THEORY'
         if computation_type[0].upper() == 'S':
             result = generate_Z_sim(ham,ts[i],Nsample,p0)
         if computation_type[0].upper() == 'R':
-            result = get_Z(backend, ham,ts[i],Nsample)
+            result = get_Z(backend, ham,ts[i],Nsample, p0)
         return result
 
     N_level=int(np.log2(T/NT))
