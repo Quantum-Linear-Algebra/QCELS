@@ -36,6 +36,47 @@ def generate_QPE_distribution(spectrum,population,J):
         dist += population[k] * fejer_kernel.eval_Fejer_kernel(J,j_arr-spectrum[k])/J
     return dist
 
+def create_QCELS_circuit(Ham, t, W = 'Re', p0 = 1, backend = AerSimulator()):
+    qr_ancilla = QuantumRegister(1)
+    qr_eigenstate = QuantumRegister(np.log2(Ham[0].shape[0]))
+    cr = ClassicalRegister(1)
+    qc = QuantumCircuit(qr_ancilla, qr_eigenstate, cr)
+    qc.h(qr_ancilla)
+    #qc.h(qr_eigenstate)
+    qc.ry(initial_state_angle(p0), qr_eigenstate)
+    mat = expm(-1j*Ham*t)
+    controlled_U = UnitaryGate(mat).control(annotated="yes")
+    qc.append(controlled_U, qargs = [qr_ancilla[:]] + qr_eigenstate[:] )
+    # if W = Imaginary
+    if W[0] == 'I': qc.sdg(qr_ancilla)
+    qc.h(qr_ancilla)
+    qc.measure(qr_ancilla[0],cr[0])
+    # print(qc)
+    trans_qc = transpile(qc, backend)
+    
+    return trans_qc
+
+def create_QPE_circuit(ham, ancillas, p0 = 1, backend = AerSimulator()):
+    qr_ancilla = QuantumRegister(ancillas)
+    qr_eigenstate = QuantumRegister(np.log2(ham[0].shape[0]))
+    cr = ClassicalRegister(ancillas)
+    qc = QuantumCircuit(qr_ancilla, qr_eigenstate, cr)
+
+    qc.h(qr_ancilla)
+    #qc.h(qr_eigenstate)
+    qc.ry(initial_state_angle(p0), qr_eigenstate)
+    time_ev = expm(-2*np.pi*1j*ham)
+    for i in range(len(qr_ancilla)):
+        mat = np.linalg.matrix_power(time_ev, 2**(i))
+        controlled_U = UnitaryGate(mat).control(annotated="yes")
+        qc.append(controlled_U, qargs = [qr_ancilla[i]] + qr_eigenstate[:] )
+    qc.append(QFT(len(qr_ancilla)).inverse(), qr_ancilla)
+    qc.measure(qr_ancilla, cr)
+    
+    trans_qc = transpile(qc, backend)
+    
+    return trans_qc
+
 
 def generate_QPE_sampling_ham(ham,Nsample,T, p0):
     T = np.ceil(np.log2(T))
@@ -205,7 +246,7 @@ def generate_Z_sim(Ham, t, Nsample, p0 = 1):
     total_time = depthRe + depthIm 
     return Z_est, total_time, max_time
 
-def get_Z(Backend, Ham, t, Nsample, p0):
+def get_Z_Re(Backend, Ham, t, Nsample, p0):
     circuitRe = generate_HT_circuit(Backend, Ham, t, Nsample, W = 'Re', p0 = p0)
     circuitIm = generate_HT_circuit(Backend, Ham, t, Nsample, W = 'Im', p0 = p0) 
 
@@ -289,7 +330,7 @@ def qcels_largeoverlap(T, NT, Nsample, lambda_prior, computation_type = 'THEORY'
         if computation_type[0].upper() == 'S':
             result = generate_Z_sim(ham,ts[i],Nsample,p0)
         if computation_type[0].upper() == 'R':
-            result = get_Z(backend, ham,ts[i],Nsample, p0)
+            result = get_Z_Re(backend, ham,ts[i],Nsample, p0)
         return result
     
     if computation_type[0].upper() == 'T':
@@ -539,7 +580,7 @@ if __name__ == "__main__":
             return result
 
         if output_file:
-            outfile = open("Output/"+str(data_name)+".txt", 'w')
+            outfile = open("Output/"+str(data_name)+"_long.txt", 'w')
 
         for a1 in range(len(p0_array)):
             p0=p0_array[a1]
@@ -583,45 +624,45 @@ if __name__ == "__main__":
                 if output_file: print("    Finished QCELS data\n", file = outfile, flush = True)
 
             # ----------------- QPE -----------------------
-                N_try_QPE = int(15*np.ceil(1.0/p0)) #number of QPE samples each time
+                # N_try_QPE = int(15*np.ceil(1.0/p0)) #number of QPE samples each time
 
-                for ix in range(N_test):
-                    print("    Running QPE", "("+str(ix+1)+"/"+str(N_test)+")", flush = True)
-                    if output_file: print("    Running QPE", "("+str(ix+1)+"/"+str(N_test)+")", file = outfile, flush=True)
+                # for ix in range(N_test):
+                #     print("    Running QPE", "("+str(ix+1)+"/"+str(N_test)+")", flush = True)
+                #     if output_file: print("    Running QPE", "("+str(ix+1)+"/"+str(N_test)+")", file = outfile, flush=True)
                     
-                    T = T_list_QPE[ix]
+                #     T = T_list_QPE[ix]
                     
-                    ground_energy_estimate_QPE, QPEdepth = QPE_Est()
+                #     ground_energy_estimate_QPE, QPEdepth = QPE_Est()
 
-                    print("      Estimated ground state energy =", ground_energy_estimate_QPE, flush = True)
-                    if output_file: print("      Estimated ground state energy =", ground_energy_estimate_QPE, file = outfile, flush = True)
+                #     print("      Estimated ground state energy =", ground_energy_estimate_QPE, flush = True)
+                #     if output_file: print("      Estimated ground state energy =", ground_energy_estimate_QPE, file = outfile, flush = True)
 
-                    err_this_ruN_test = np.abs(ground_energy_estimate_QPE-spectrum[0])
-                    err_QPE[a1,ix] = err_QPE[a1,ix]+np.abs(err_this_ruN_test)
+                #     err_this_ruN_test = np.abs(ground_energy_estimate_QPE-spectrum[0])
+                #     err_QPE[a1,ix] = err_QPE[a1,ix]+np.abs(err_this_ruN_test)
 
-                    if np.abs(err_this_ruN_test)<err_threshold:
-                        n_success_QPE[ix]+=1
-                    #cost_list_avg_QPE[a1,ix] = T*N_try_QPE
-                    cost_list_avg_QPE[a1,ix] = QPEdepth
+                #     if np.abs(err_this_ruN_test)<err_threshold:
+                #         n_success_QPE[ix]+=1
+                #     #cost_list_avg_QPE[a1,ix] = T*N_try_QPE
+                #     cost_list_avg_QPE[a1,ix] = QPEdepth
 
-                print("    Finished QPE data\n", flush = True)
-                if output_file: print("    Finished QPE data\n", file = outfile, flush = True)
+                # print("    Finished QPE data\n", flush = True)
+                # if output_file: print("    Finished QPE data\n", file = outfile, flush = True)
 
             rate_success_QCELS[a1,:] = n_success_QCELS[:]/trials
-            rate_success_QPE[a1,:] = n_success_QPE[:]/trials
+            # rate_success_QPE[a1,:] = n_success_QPE[:]/trials
             err_QCELS[a1,:] = err_QCELS[a1,:]/trials
-            err_QPE[a1,:] = err_QPE[a1,:]/trials
+            # err_QPE[a1,:] = err_QPE[a1,:]/trials
             cost_list_avg_QCELS[a1,:]=cost_list_avg_QCELS[a1,:]/trials
 
-        np.savez('Data/'+data_name+'_result_TFIM_8sites_QPE',name1=rate_success_QPE,name2=T_list_QPE,name3=cost_list_avg_QPE,name4=err_QPE)
-        np.savez('Data/'+data_name+'_result_TFIM_8sites_QCELS',name1=rate_success_QCELS,name2=max_T_QCELS,name3=cost_list_avg_QCELS,name4=err_QCELS)
-        np.savez('Data/'+data_name+'_TFIM_8sites_data',name1=spectrum,name2=population,name3=ground_energy_estimate_QCELS.x[0],
+        # np.savez('Data/'+data_name+'_long_result_TFIM_8sites_QPE',name1=rate_success_QPE,name2=T_list_QPE,name3=cost_list_avg_QPE,name4=err_QPE)
+        np.savez('Data/'+data_name+'_long_result_TFIM_8sites_QCELS',name1=rate_success_QCELS,name2=max_T_QCELS,name3=cost_list_avg_QCELS,name4=err_QCELS)
+        np.savez('Data/'+data_name+'_long_TFIM_8sites_data',name1=spectrum,name2=population,name3=ground_energy_estimate_QCELS.x[0],
                 name4=ground_energy_estimate_QCELS.x[1],name5=ground_energy_estimate_QCELS.x[2])
 
         print("Saved data to files starting with", data_name, flush = True)
         if output_file: print("Saved data to files starting with", data_name, file = outfile, flush=True)
         outfile.close()
-        if output_file: print("Saved output to file ", "Output/"+str(data_name)+".txt", flush = True)
+        if output_file: print("Saved output to file ", "Output/"+str(data_name)+"_long.txt", flush = True)
 
 
 
