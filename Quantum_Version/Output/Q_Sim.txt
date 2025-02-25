@@ -136,3 +136,5 @@ Testing p0 = 0.6 (1/2)
     Running QCELS (2/10)
       Estimated ground state energy = -0.49260694543097705
     Running QCELS (3/10)
+      Estimated ground state energy = -0.28279657858437807
+    Running QCELS (4/10)

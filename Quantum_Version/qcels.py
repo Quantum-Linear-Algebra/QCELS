@@ -157,7 +157,7 @@ def generate_filtered_Z_est(spectrum,population,t,x,d,delta,Nsample,Nbatch):
     return y_avg, total_time, max_time
 
 
-def generate_Z_est(spectrum,population,t,Nsample):
+def generate_Z_theory(spectrum,population,t,Nsample):
     Re=0
     Im=0
     z=np.dot(population,np.exp(-1j*spectrum*t))
@@ -326,7 +326,7 @@ def qcels_largeoverlap(T, NT, Nsample, lambda_prior, computation_type = 'THEORY'
 
     def get_data():
         if computation_type[0].upper() == 'T':
-            result = generate_Z_est(spectrum,population,ts[i],Nsample)
+            result = generate_Z_theory(spectrum,population,ts[i],Nsample)
         if computation_type[0].upper() == 'S':
             result = generate_Z_sim(ham,ts[i],Nsample,p0)
         if computation_type[0].upper() == 'R':

@@ -2773,3 +2773,43 @@ Testing p0 = 0.6 (1/2)
       Starting Iteration (2/4)
         Z_est for timestep 1 = (1-2.4492935982947064e-16j)
         Z_est for timestep 2 = (-0.23999999999999996+0.9707728879609278j)
+        Z_est for timestep 3 = (0.13999999999999999+0.9901515035589251j)
+        Z_est for timestep 4 = (0.08000000000000011+0.996794863550169j)
+        Z_est for timestep 5 = (0.06000000000000001+0.9981983770774224j)
+      Starting Iteration (3/4)
+        Z_est for timestep 1 = (1+0j)
+        Z_est for timestep 2 = (-0.10000000000000013-0.99498743710662j)
+        Z_est for timestep 3 = (-0.2199999999999999+0.975499871860576j)
+        Z_est for timestep 4 = (-0.7-0.714142842854285j)
+        Z_est for timestep 5 = (-0.3399999999999999+0.9404254356406998j)
+      Starting Iteration (4/4)
+        Z_est for timestep 1 = (1+0j)
+        Z_est for timestep 2 = (-0.24000000000000019-0.9707728879609278j)
+        Z_est for timestep 3 = (-0.26000000000000006+0.9656086163658648j)
+        Z_est for timestep 4 = (-0.02000000000000007+0.999799979995999j)
+        Z_est for timestep 5 = (0.07999999999999964-0.996794863550169j)
+      Finished Iterations
+      Estimated ground state energy =  message: Optimization terminated successfully
+ success: True
+  status: 0
+     fun: 0.9873911657144039
+       x: [ 1.122e-01 -5.138e-03 -2.828e-01]
+     nit: 7
+     jac: [ 2.399e-05 -9.228e-05  5.683e-03]
+    nfev: 31
+    njev: 7
+    Running QCELS (4/10)
+      Preprocessing
+        Z_est for timestep 1 = (1-2.4492935982947064e-16j)
+        Z_est for timestep 2 = (0.9199999999999999+0.3919183588453087j)
+        Z_est for timestep 3 = (0.7+0.714142842854285j)
+        Z_est for timestep 4 = (0.4199999999999999+0.9075241043630743j)
+        Z_est for timestep 5 = (-0.02000000000000007+0.999799979995999j)
+      Starting Iteration (1/5)
+        Z_est for timestep 1 = (1+0j)
+        Z_est for timestep 2 = (0.6599999999999999+0.751265598839718j)
+        Z_est for timestep 3 = (0.19999999999999993+0.9797958971132713j)
+        Z_est for timestep 4 = (-0.20000000000000026-0.9797958971132712j)
+        Z_est for timestep 5 = (-0.020000000000000538-0.999799979995999j)
+      Starting Iteration (2/5)
+        Z_est for timestep 1 = (1-2.4492935982947064e-16j)
