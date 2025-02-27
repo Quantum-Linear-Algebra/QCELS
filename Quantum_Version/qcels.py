@@ -36,7 +36,7 @@ def generate_QPE_distribution(spectrum,population,J):
         dist += population[k] * fejer_kernel.eval_Fejer_kernel(J,j_arr-spectrum[k])/J
     return dist
 
-def create_QCELS_circuit(Ham, t, W = 'Re', p0 = 1, backend = AerSimulator()):
+def create_HT_circuit(Ham, t, W = 'Re', p0 = 1, backend = AerSimulator()):
     qr_ancilla = QuantumRegister(1)
     qr_eigenstate = QuantumRegister(np.log2(Ham[0].shape[0]))
     cr = ClassicalRegister(1)
