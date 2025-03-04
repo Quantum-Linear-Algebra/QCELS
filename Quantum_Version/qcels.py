@@ -302,7 +302,10 @@ def qcels_opt(ts, Z_est, x0, bounds = None, method = 'SLSQP'):
 
     return res
 
-def qcels_largeoverlap_new(Z_est, time_steps, T, lambda_prior, computation_type = 'THEORY'):
+def get_tau(j, epsilon, delta, time_steps):
+    return 2**(j - 1 - np.ceil(np.log2(1/epsilon)))*(2**(-4))#*(delta/(time_steps*epsilon))
+
+def qcels_largeoverlap_new(Z_est, time_steps, T, lambda_prior, delta, epsilon):
     print(Z_est)
     """Multi-level QCELS for a system with a large initial overlap.
 
@@ -320,15 +323,10 @@ def qcels_largeoverlap_new(Z_est, time_steps, T, lambda_prior, computation_type 
     total evolution time T_{total}
 
     """
-    
-    # if computation_type[0].upper() == 'T':
-    #     N_level=int(np.log2(T/time_steps))
-    # if computation_type[0].upper() == 'S':
-    #     #N_level = T
-    #     N_level=int(np.log2(T/time_steps))
-    
-    N_level=int(np.log2(T/time_steps))
-    tau=T/time_steps/(2**N_level)
+    iterations = len(Z_est) - 1
+    print(iterations)
+    #tau=delta/time_steps/epsilon
+    tau = get_tau(0, epsilon, delta, time_steps)
     ts=tau*np.arange(time_steps)
     print("      Preprocessing", flush = True)
     #Step up and solve the optimization problem
@@ -341,10 +339,9 @@ def qcels_largeoverlap_new(Z_est, time_steps, T, lambda_prior, computation_type 
     #Update the estimation interval
     lambda_min=ground_energy_estimate_QCELS-np.pi/(2*tau) 
     lambda_max=ground_energy_estimate_QCELS+np.pi/(2*tau) 
-    for iter in range(1, len(Z_est)-1):
-        print('      Starting Iteration', "("+str(iter+1)+'/'+str(N_level)+")", flush = True)
-        Z_est=np.zeros(time_steps,dtype = 'complex') # 'complex_'
-        tau=T/time_steps/(2**(N_level-iter-1)) #generate a sequence of \tau_j
+    for iter in range(1, iterations + 1):
+        print('      Starting Iteration', "("+str(iter)+'/'+str(iterations)+")", flush = True)
+        tau = get_tau(iter, epsilon, delta, time_steps)
         ts=tau*np.arange(time_steps)
         #Step up and solve the optimization problem
         x0=np.array((ground_coefficient_QCELS,ground_coefficient_QCELS2,ground_energy_estimate_QCELS))
