@@ -8,6 +8,7 @@ Last revision: 11/22/2022
 import scipy.io as sio
 import numpy as np
 from copy import deepcopy
+from numpy.linalg import eigh
 from scipy.optimize import minimize
 from scipy.special import erf
 import cmath
@@ -23,6 +24,15 @@ from qiskit.circuit.library import UnitaryGate, QFT
 from scipy.linalg import expm
 
 ham_shift = np.pi/4
+
+def modify_spectrum(ham):
+    arr_ham = ham.toarray()
+    arr_ham = arr_ham.astype(np.complex128)
+    n = len(arr_ham[0])
+    eigenenergies, _ = ham.eigh(subset_by_index = (n-1,n-1))
+    max_eigenvalue = eigenenergies[0]
+    norm_ham = (ham_shift)*arr_ham/max_eigenvalue
+    return norm_ham
 
 def initial_state_angle(p):
     return 2 * np.arccos((np.sqrt(2*p) + np.sqrt(2 * (1 - p)))/2)
@@ -42,8 +52,8 @@ def create_HT_circuit(Ham, t, W = 'Re', p0 = 1, backend = AerSimulator()):
     cr = ClassicalRegister(1)
     qc = QuantumCircuit(qr_ancilla, qr_eigenstate, cr)
     qc.h(qr_ancilla)
-    qc.h(qr_eigenstate)
-    #qc.ry(initial_state_angle(p0), qr_eigenstate)
+    #qc.h(qr_eigenstate)
+    qc.ry(initial_state_angle(p0), qr_eigenstate)
     mat = expm(-1j*Ham*t)
     controlled_U = UnitaryGate(mat).control(annotated="yes")
     qc.append(controlled_U, qargs = [qr_ancilla[:]] + qr_eigenstate[:] )
@@ -325,7 +335,6 @@ def qcels_largeoverlap_new(Z_est, time_steps, lambda_prior, delta, epsilon, T):
 
     """
     iterations = len(Z_est) - 1
-    print(iterations)
     #tau=delta/time_steps/epsilon
     tau = get_tau(0, epsilon, delta, time_steps, iterations, T)
     ts=tau*np.arange(time_steps)
