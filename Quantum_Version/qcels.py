@@ -42,8 +42,8 @@ def create_HT_circuit(Ham, t, W = 'Re', p0 = 1, backend = AerSimulator()):
     cr = ClassicalRegister(1)
     qc = QuantumCircuit(qr_ancilla, qr_eigenstate, cr)
     qc.h(qr_ancilla)
-    #qc.h(qr_eigenstate)
-    qc.ry(initial_state_angle(p0), qr_eigenstate)
+    qc.h(qr_eigenstate)
+    #qc.ry(initial_state_angle(p0), qr_eigenstate)
     mat = expm(-1j*Ham*t)
     controlled_U = UnitaryGate(mat).control(annotated="yes")
     qc.append(controlled_U, qargs = [qr_ancilla[:]] + qr_eigenstate[:] )
@@ -302,11 +302,12 @@ def qcels_opt(ts, Z_est, x0, bounds = None, method = 'SLSQP'):
 
     return res
 
-def get_tau(j, epsilon, delta, time_steps):
-    return 2**(j - 1 - np.ceil(np.log2(1/epsilon)))*(2**(-4))#*(delta/(time_steps*epsilon))
+def get_tau(j, epsilon, delta, time_steps, iterations, T):
+    #return 2**(j - np.ceil(np.log2(1/epsilon)))*(2**(-4))#*(delta/(time_steps*epsilon))#
+    #return 2**(j)*epsilon
+    return T/time_steps/(2**(iterations-j))
 
-def qcels_largeoverlap_new(Z_est, time_steps, T, lambda_prior, delta, epsilon):
-    print(Z_est)
+def qcels_largeoverlap_new(Z_est, time_steps, lambda_prior, delta, epsilon, T):
     """Multi-level QCELS for a system with a large initial overlap.
 
     Description: The code of using Multi-level QCELS to estimate the ground state energy for a systems with a large initial overlap
@@ -326,7 +327,7 @@ def qcels_largeoverlap_new(Z_est, time_steps, T, lambda_prior, delta, epsilon):
     iterations = len(Z_est) - 1
     print(iterations)
     #tau=delta/time_steps/epsilon
-    tau = get_tau(0, epsilon, delta, time_steps)
+    tau = get_tau(0, epsilon, delta, time_steps, iterations, T)
     ts=tau*np.arange(time_steps)
     print("      Preprocessing", flush = True)
     #Step up and solve the optimization problem
@@ -341,7 +342,7 @@ def qcels_largeoverlap_new(Z_est, time_steps, T, lambda_prior, delta, epsilon):
     lambda_max=ground_energy_estimate_QCELS+np.pi/(2*tau) 
     for iter in range(1, iterations + 1):
         print('      Starting Iteration', "("+str(iter)+'/'+str(iterations)+")", flush = True)
-        tau = get_tau(iter, epsilon, delta, time_steps)
+        tau = get_tau(iter, epsilon, delta, time_steps, iterations, T)
         ts=tau*np.arange(time_steps)
         #Step up and solve the optimization problem
         x0=np.array((ground_coefficient_QCELS,ground_coefficient_QCELS2,ground_energy_estimate_QCELS))
