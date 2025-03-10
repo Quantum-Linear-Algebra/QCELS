@@ -23,7 +23,7 @@ from qiskit_ibm_runtime import SamplerV2 as Sampler
 from qiskit.circuit.library import UnitaryGate, QFT
 from scipy.linalg import expm
 
-ham_shift = np.pi/4
+ham_shift = 3*np.pi/4
 
 def modify_spectrum(ham):
     arr_ham = ham.toarray()

@@ -74,8 +74,9 @@ def generate_Z_est(spectrum,population,t,Nsample):
     Re=0
     Im=0
     z=np.dot(population,np.exp(-1j*spectrum*t))
-    Re_true=(1+z.real)/2
-    Im_true=(1+z.imag)/2
+    Re_true=(1+z.real)/2 # real prob 0
+    Im_true=(1+z.imag)/2 # im prob 0
+    #print('Real', Re_true, 'Imaginary', Im_true)
     #Simulate Hadmard test
     for nt in range(Nsample):
         if np.random.uniform(0,1)<Re_true:
@@ -83,6 +84,7 @@ def generate_Z_est(spectrum,population,t,Nsample):
     for nt2 in range(Nsample):
         if np.random.uniform(0,1)<Im_true:
            Im+=1
+    #print('ReCounts', Re, "ImCounts", Im)
     Z_est = complex(2*Re/Nsample-1,2*Im/Nsample-1)
     max_time = t
     total_time = t * Nsample
@@ -145,6 +147,7 @@ def qcels_largeoverlap(spectrum, population, T, NT, Nsample, lambda_prior):
                 spectrum,population,ts[i],Nsample) #Approximate <\psi|\exp(-itH)|\psi> using Hadmard test
         total_time_all += total_time
         max_time_all = max(max_time_all, max_time)
+        print(ts[i])
     #Step up and solve the optimization problem
     x0=np.array((0.5,0,lambda_prior))
     res = qcels_opt(ts, Z_est, x0)#Solve the optimization problem
@@ -165,6 +168,7 @@ def qcels_largeoverlap(spectrum, population, T, NT, Nsample, lambda_prior):
                     spectrum,population,ts[i],Nsample) #Approximate <\psi|\exp(-itH)|\psi> using Hadmard test
             total_time_all += total_time
             max_time_all = max(max_time_all, max_time)
+            print(ts[i])
         #Step up and solve the optimization problem
         x0=np.array((ground_coefficient_QCELS,ground_coefficient_QCELS2,ground_energy_estimate_QCELS))
         bnds=((-np.inf,np.inf),(-np.inf,np.inf),(lambda_min,lambda_max)) 
