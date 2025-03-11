@@ -96,7 +96,6 @@ def generate_spectrum_population(eigenenergies, population, p):
     p = np.array(p)
     spectrum = eigenenergies * 0.25*np.pi/np.max(np.abs(eigenenergies))#normalize the spectrum
     q = population
-    print(p)
     num_p = p.shape[0]
     q[0:num_p] = p/(1-np.sum(p))*np.sum(q[num_p:])
     return spectrum, q/np.sum(q)
@@ -147,7 +146,6 @@ def qcels_largeoverlap(spectrum, population, T, NT, Nsample, lambda_prior):
                 spectrum,population,ts[i],Nsample) #Approximate <\psi|\exp(-itH)|\psi> using Hadmard test
         total_time_all += total_time
         max_time_all = max(max_time_all, max_time)
-        print(ts[i])
     #Step up and solve the optimization problem
     x0=np.array((0.5,0,lambda_prior))
     res = qcels_opt(ts, Z_est, x0)#Solve the optimization problem
@@ -168,7 +166,6 @@ def qcels_largeoverlap(spectrum, population, T, NT, Nsample, lambda_prior):
                     spectrum,population,ts[i],Nsample) #Approximate <\psi|\exp(-itH)|\psi> using Hadmard test
             total_time_all += total_time
             max_time_all = max(max_time_all, max_time)
-            print(ts[i])
         #Step up and solve the optimization problem
         x0=np.array((ground_coefficient_QCELS,ground_coefficient_QCELS2,ground_energy_estimate_QCELS))
         bnds=((-np.inf,np.inf),(-np.inf,np.inf),(lambda_min,lambda_max)) 

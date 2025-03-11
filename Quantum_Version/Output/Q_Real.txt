@@ -1,2 +1,0 @@
-Testing p0 = 0.8 (1/2)
-    Running QCELS (1/5)
