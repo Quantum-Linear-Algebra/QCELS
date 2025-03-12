@@ -143,6 +143,7 @@ def qcels_largeoverlap(spectrum, population, T, NT, Nsample, lambda_prior):
     Z_est=np.zeros(NT,dtype = 'complex')
     tau=T/NT/(2**N_level)
     ts=tau*np.arange(NT)
+    t_ns = NT
     for i in range(NT):
         Z_est[i], total_time, max_time=generate_Z_est(
                 spectrum,population,ts[i],Nsample) #Approximate <\psi|\exp(-itH)|\psi> using Hadmard test
@@ -163,6 +164,7 @@ def qcels_largeoverlap(spectrum, population, T, NT, Nsample, lambda_prior):
         Z_est=np.zeros(NT,dtype = 'complex')
         tau=T/NT/(2**(N_level-n_QCELS-1)) #generate a sequence of \tau_j
         ts=tau*np.arange(NT)
+        t_ns += NT
         for i in range(NT):
             Z_est[i], total_time, max_time=generate_Z_est(
                     spectrum,population,ts[i],Nsample) #Approximate <\psi|\exp(-itH)|\psi> using Hadmard test
@@ -180,7 +182,7 @@ def qcels_largeoverlap(spectrum, population, T, NT, Nsample, lambda_prior):
         lambda_min=ground_energy_estimate_QCELS-np.pi/(2*tau) 
         lambda_max=ground_energy_estimate_QCELS+np.pi/(2*tau) 
 
-    return res, total_time_all, max_time_all
+    return res, t_ns, max_time_all
 
 
 def qcels_smalloverlap(spectrum, population, T, NT, d, rel_gap, err_tol_rough, Nsample_rough, Nsample):

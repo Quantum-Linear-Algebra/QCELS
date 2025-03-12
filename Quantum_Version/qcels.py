@@ -334,6 +334,7 @@ def qcels_largeoverlap_new(Z_est, time_steps, lambda_prior, delta, epsilon, T):
     total evolution time T_{total}
 
     """
+    t_ns = time_steps
     iterations = len(Z_est) - 1
     #tau=delta/time_steps/epsilon
     tau = get_tau(0, epsilon, delta, time_steps, iterations, T)
@@ -353,6 +354,7 @@ def qcels_largeoverlap_new(Z_est, time_steps, lambda_prior, delta, epsilon, T):
         print('      Starting Iteration', "("+str(iter)+'/'+str(iterations)+")", flush = True)
         tau = get_tau(iter, epsilon, delta, time_steps, iterations, T)
         ts=tau*np.arange(time_steps)
+        t_ns += time_steps
         #Step up and solve the optimization problem
         x0=np.array((ground_coefficient_QCELS,ground_coefficient_QCELS2,ground_energy_estimate_QCELS))
         bnds=((-np.inf,np.inf),(-np.inf,np.inf),(lambda_min,lambda_max)) 
@@ -365,7 +367,7 @@ def qcels_largeoverlap_new(Z_est, time_steps, lambda_prior, delta, epsilon, T):
         lambda_min=ground_energy_estimate_QCELS-np.pi/(2*tau) 
         lambda_max=ground_energy_estimate_QCELS+np.pi/(2*tau) 
     print("      Finished Iterations", flush = True)
-    return res
+    return res, t_ns
 
 
 # method has been modified to allow computation for THEORY, SIMULATION, and REAL HARDWARE
