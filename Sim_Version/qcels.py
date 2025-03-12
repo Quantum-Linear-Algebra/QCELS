@@ -74,6 +74,7 @@ def generate_Z_est(spectrum,population,t,Nsample):
     Re=0
     Im=0
     z=np.dot(population,np.exp(-1j*spectrum*t))
+    #z = z/abs(z)
     Re_true=(1+z.real)/2 # real prob 0
     Im_true=(1+z.imag)/2 # im prob 0
     #print('Real', Re_true, 'Imaginary', Im_true)
@@ -85,16 +86,17 @@ def generate_Z_est(spectrum,population,t,Nsample):
         if np.random.uniform(0,1)<Im_true:
            Im+=1
     #print('ReCounts', Re, "ImCounts", Im)
+    
     Z_est = complex(2*Re/Nsample-1,2*Im/Nsample-1)
     max_time = t
     total_time = t * Nsample
-    return Z_est, total_time, max_time 
+    return Z_est, total_time, max_time #Z_est/abs(Z_est)
        
 
 def generate_spectrum_population(eigenenergies, population, p):
 
     p = np.array(p)
-    spectrum = eigenenergies * 0.25*np.pi/np.max(np.abs(eigenenergies))#normalize the spectrum
+    spectrum = eigenenergies * (3/4)*np.pi/np.max(np.abs(eigenenergies))#normalize the spectrum
     q = population
     num_p = p.shape[0]
     q[0:num_p] = p/(1-np.sum(p))*np.sum(q[num_p:])
