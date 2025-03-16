@@ -30,22 +30,23 @@ def modify_spectrum(ham):
 def initial_state_angle(p):
     return 2 * np.arccos((np.sqrt(2*p) + np.sqrt(2 * (1 - p)))/2)
 
-def create_HT_circuit(Ham, t, W = 'Re', p0 = 1, backend = AerSimulator()):
+def create_HT_circuit(qubits, unitary, W = 'Re', p0 = 1, backend = AerSimulator()):
     qr_ancilla = QuantumRegister(1)
-    qr_eigenstate = QuantumRegister(np.log2(Ham[0].shape[0]))
+    #qr_eigenstate = QuantumRegister(np.log2(Ham[0].shape[0]))
+    qr_eigenstate = QuantumRegister(qubits)
     cr = ClassicalRegister(1)
     qc = QuantumCircuit(qr_ancilla, qr_eigenstate, cr)
     qc.h(qr_ancilla)
     #qc.h(qr_eigenstate)
     qc.ry(initial_state_angle(p0), qr_eigenstate)
-    mat = expm(-1j*Ham*t)
-    controlled_U = UnitaryGate(mat).control(annotated="yes")
-    qc.append(controlled_U, qargs = [qr_ancilla[:]] + qr_eigenstate[:] )
+    #mat = expm(-1j*Ham*t)
+    #controlled_U = UnitaryGate(mat).control(annotated="yes")
+    qc.append(unitary, qargs = [qr_ancilla[:]] + qr_eigenstate[:] )
     # if W = Imaginary
     if W[0] == 'I': qc.sdg(qr_ancilla)
     qc.h(qr_ancilla)
     qc.measure(qr_ancilla[0],cr[0])
-    # print(qc)
+    print(qc)
     trans_qc = transpile(qc, backend)
     
     return trans_qc
