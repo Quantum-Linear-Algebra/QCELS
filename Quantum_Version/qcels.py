@@ -37,10 +37,10 @@ def create_HT_circuit(qubits, unitary, W = 'Re', p0 = 1, backend = AerSimulator(
     cr = ClassicalRegister(1)
     qc = QuantumCircuit(qr_ancilla, qr_eigenstate, cr)
     qc.h(qr_ancilla)
-    #qc.h(qr_eigenstate)
-    qc.ry(initial_state_angle(p0), qr_eigenstate)
-    #mat = expm(-1j*Ham*t)
-    #controlled_U = UnitaryGate(mat).control(annotated="yes")
+    if p0 == 1:
+        qc.h(qr_eigenstate)
+    else:
+        qc.ry(initial_state_angle(p0), qr_eigenstate)
     qc.append(unitary, qargs = [qr_ancilla[:]] + qr_eigenstate[:] )
     # if W = Imaginary
     if W[0] == 'I': qc.sdg(qr_ancilla)
@@ -48,7 +48,6 @@ def create_HT_circuit(qubits, unitary, W = 'Re', p0 = 1, backend = AerSimulator(
     qc.measure(qr_ancilla[0],cr[0])
     print(qc)
     trans_qc = transpile(qc, backend)
-    
     return trans_qc
 
 def get_estimated_ground_energy_rough(d,delta,spectrum,population,Nsample,Nbatch):
