@@ -46,7 +46,6 @@ def create_HT_circuit(qubits, unitary, W = 'Re', p0 = 1, backend = AerSimulator(
     if W[0] == 'I': qc.sdg(qr_ancilla)
     qc.h(qr_ancilla)
     qc.measure(qr_ancilla[0],cr[0])
-    print(qc)
     trans_qc = transpile(qc, backend)
     return trans_qc
 
