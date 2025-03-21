@@ -97,7 +97,7 @@ def sample_XY(compute_prob_X, compute_prob_Y, F_coeffs, Nsample, Nbatch):
     
     outcome_X_arr = np.zeros([Nbatch,Nsample],dtype=np.complex128)
     outcome_Y_arr = np.zeros([Nbatch,Nsample],dtype=np.complex128)
-    J_arr = np.zeros([Nbatch,Nsample],dtype=np.int)
+    J_arr = np.zeros([Nbatch,Nsample],dtype=int)
     for nbatch in range(Nbatch):
         J_list = draw_with_prob(np.abs(F_coeffs),Nsample)
         J_arr[nbatch,:] = J_list
@@ -115,7 +115,7 @@ def sample_XY_median(compute_prob_X, compute_prob_Y, F_coeffs, Nsample, Nbatch, 
 
     outcome_X_arr_cube = np.zeros([Nbin,Nbatch,Nsample],dtype=np.complex128)
     outcome_Y_arr_cube = np.zeros([Nbin,Nbatch,Nsample],dtype=np.complex128)
-    J_arr_cube = np.zeros([Nbin,Nbatch,Nsample],dtype=np.int)
+    J_arr_cube = np.zeros([Nbin,Nbatch,Nsample],dtype=int)
     
     for ixbin in range(Nbin):
         outcome_X_arr, outcome_Y_arr, J_arr = sample_XY(compute_prob_X, 
@@ -183,7 +183,7 @@ def sample_XY_QCELS(compute_prob_X, compute_prob_Y, F_coeffs, Nsample, Nbatch,t)
     
     outcome_X_arr = np.zeros([Nbatch,Nsample],dtype=np.complex128)
     outcome_Y_arr = np.zeros([Nbatch,Nsample],dtype=np.complex128)
-    J_arr = np.zeros([Nbatch,Nsample],dtype=np.int)
+    J_arr = np.zeros([Nbatch,Nsample],dtype=int)
     for nbatch in range(Nbatch):
         J_list = draw_with_prob(np.abs(F_coeffs_new),Nsample)
         J_arr[nbatch,:] = J_list
