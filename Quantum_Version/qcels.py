@@ -22,6 +22,9 @@ from scipy.linalg import expm
 
 ham_shift = 3*np.pi/4
 
+def flatten(xss):
+    return [x for xs in xss for x in xs]
+
 def modify_spectrum(ham):
     arr_ham = ham.toarray().astype(np.complex128)
     norm_ham = (ham_shift)*arr_ham/np.linalg.norm(arr_ham, ord = 2)
@@ -443,11 +446,24 @@ if __name__ == "__main__":
 
     qcs_QCELS = sum(qcs_QCELS, []) # flatten list
 
+    num_splits = 4
+    split = int(len(qcs_QCELS)/num_splits)
+
+    qcs_QCELS_circuits = []
+    for i in range(num_splits):
+        qcs_QCELS_circuits.append(qcs_QCELS[i*split:(i+1)*split])
+
     # Runs loaded circuits
     print('Running transpiled circuits')
     sampler = Sampler(backend)
-    jobs = sampler.run(qcs_QCELS, shots = T0)
-    results = jobs.result()
+    jobs = []
+    results = []
+    for i in range(num_splits):
+        job = sampler.run(qcs_QCELS_circuits[i], shots = T0)
+        result = job.result()
+        jobs.append(job)
+        results.append(result)
+    results = flatten(results)
 
     Z_ests = []
     QCELS_times = []
