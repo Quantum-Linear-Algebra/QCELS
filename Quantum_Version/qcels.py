@@ -327,11 +327,11 @@ if __name__ == "__main__":
     
     computation_type = 'R'
     output_file = True
-    p0_array            = np.array([0.6, 0.8]) # initial overlap with the first eigenvector
+    p0_array            = np.array([0.8, 0.9]) # initial overlap with the first eigenvector
     # p0_array            = np.arange(0.6, 0.99, 0.05)
     deltas              = 1 - np.sqrt(p0_array)
     trials              = 10 # number of comparisions each test (circuit depths)
-    tests               = 1
+    tests               = 2
     err_threshold       = 0.01
     T0                  = 100
 
@@ -390,36 +390,35 @@ if __name__ == "__main__":
 
         if output_file: print("Testing p0 =", p0,"("+str(p+1)+"/"+str(len(p0_array))+")", file = outfile)
 
-        for test in range(tests):
+        print("  Generating QCELS circuits", "(p0="+str(p0)+")")
 
-            print("  Generating QCELS circuits", "(p0="+str(p0)+")","("+str(test+1)+"/"+str(tests)+")")
+        #spectrum, population = generate_spectrum_population(eigenenergies, population_raw, [p0])
 
-            #spectrum, population = generate_spectrum_population(eigenenergies, population_raw, [p0])
+        #------------------QCELS-----------------
+        Nsample = 100 # number of samples for constructing the loss function
 
-            #------------------QCELS-----------------
-            Nsample = 100 # number of samples for constructing the loss function
+        for trial in range(trials):
+            print("    Transpiling QCELS", "("+str(trial+1)+"/"+str(trials)+")")
+            epsilon = epsilons[trial]
 
-            for trial in range(trials):
-                print("    Transpiling QCELS", "("+str(trial+1)+"/"+str(trials)+")")
-                epsilon = epsilons[trial]
+            if output_file: print("    Transpiling QCELS", "("+str(trial+1)+"/"+str(trials)+")", file = outfile, flush = True)
+            T = 1/epsilon
+            for j in range(iterations[trial] + 1):
+                tau = get_tau(j, time_steps, iterations[trial], T)
+                qcs_QCELS = []
+                #unitaries = (generate_TFIM_gates(num_sites, time_steps, tau, g, '../../../f3cpp'))
+                for data_pair in range(time_steps):
+                    t = tau*data_pair
+                    mat = expm(-1j*ham*t)
+                    controlled_U = UnitaryGate(mat).control(annotated="yes")
+                    #qcs_QCELS.append(create_HT_circuit(num_sites, unitaries[data_pair], W = 'Re', p0 = p0, backend = backend))
+                    #qcs_QCELS.append(create_HT_circuit(num_sites, unitaries[data_pair], W = 'Im', p0 = p0, backend = backend))
+                    qcs_QCELS.append(create_HT_circuit(num_sites, controlled_U, W = 'Re', backend = backend, init_state = ansatz[p]))
+                    qcs_QCELS.append(create_HT_circuit(num_sites, controlled_U, W = 'Im', backend = backend, init_state = ansatz[p]))
+                with open('Transpiled_Circuits/QCELS_p0='+str(p0)+'_Trial'+str(trial)+'_Iter='+str(j)+'.qpy', 'wb') as f:
+                    qiskit.qpy.dump(qcs_QCELS, f)
+        print('Finished transpiling for QCELS ', "(p0="+str(p0)+")")
 
-                if output_file: print("    Transpiling QCELS", "("+str(trial+1)+"/"+str(trials)+")", file = outfile, flush = True)
-                T = 1/epsilon
-                for j in range(iterations[trial] + 1):
-                    tau = get_tau(j, time_steps, iterations[trial], T)
-                    qcs_QCELS = []
-                    #unitaries = (generate_TFIM_gates(num_sites, time_steps, tau, g, '../../../f3cpp'))
-                    for data_pair in range(time_steps):
-                        t = tau*data_pair
-                        mat = expm(-1j*ham*t)
-                        controlled_U = UnitaryGate(mat).control(annotated="yes")
-                        #qcs_QCELS.append(create_HT_circuit(num_sites, unitaries[data_pair], W = 'Re', p0 = p0, backend = backend))
-                        #qcs_QCELS.append(create_HT_circuit(num_sites, unitaries[data_pair], W = 'Im', p0 = p0, backend = backend))
-                        qcs_QCELS.append(create_HT_circuit(num_sites, controlled_U, W = 'Re', backend = backend, init_state = ansatz[p]))
-                        qcs_QCELS.append(create_HT_circuit(num_sites, controlled_U, W = 'Im', backend = backend, init_state = ansatz[p]))
-                    with open('Transpiled_Circuits/QCELS_p0='+str(p0)+'_Test'+str(test)+'_Trial'+str(trial)+'_Iter='+str(j)+'.qpy', 'wb') as f:
-                        qiskit.qpy.dump(qcs_QCELS, f)
-            print('Finished transpiling for QCELS test '+str(test + 1))
 
     
     # Loads transpiled circuits
@@ -436,7 +435,7 @@ if __name__ == "__main__":
                 depth = 0
                 print('Loading QCELS data ('+str(trial+1)+'/'+str(trials)+')')
                 for i in range(iterations[trial] + 1):
-                    with open('Transpiled_Circuits/QCELS_p0='+str(p0)+'_Test'+str(test)+'_Trial'+str(trial)+'_Iter='+str(i)+'.qpy', 'rb') as f:
+                    with open('Transpiled_Circuits/QCELS_p0='+str(p0)+'_Trial'+str(trial)+'_Iter='+str(i)+'.qpy', 'rb') as f:
                         circs = qiskit.qpy.load(f)
                         for time_step in range(time_steps):
                             depth += circs[time_step].depth() 
@@ -446,7 +445,7 @@ if __name__ == "__main__":
 
     qcs_QCELS = sum(qcs_QCELS, []) # flatten list
 
-    num_splits = 4
+    num_splits = 4*tests
     split = int(len(qcs_QCELS)/num_splits)
 
     qcs_QCELS_circuits = []
