@@ -40,6 +40,7 @@ def create_HT_circuit(qubits, unitary, W = 'Re', backend = AerSimulator(), init_
     qc = QuantumCircuit(qr_ancilla, qr_eigenstate, cr)
     qc.h(qr_ancilla)
     qc.initialize(init_state, qr_eigenstate[:])
+    #qc.h(qr_eigenstate)
     qc.append(unitary, qargs = [qr_ancilla[:]] + qr_eigenstate[:] )
     # if W = Imaginary
     if W[0] == 'I': qc.sdg(qr_ancilla)
@@ -325,13 +326,13 @@ if __name__ == "__main__":
         pop = np.abs(np.dot(spin_states.conj().T, ground_state))**2
 
     
-    computation_type = 'R'
+    computation_type = 'S'
     output_file = True
-    p0_array            = np.array([0.8, 0.9]) # initial overlap with the first eigenvector
+    p0_array            = np.array([0.1, 0.3, 0.5, 0.7, 0.9]) # initial overlap with the first eigenvector
     # p0_array            = np.arange(0.6, 0.99, 0.05)
     deltas              = 1 - np.sqrt(p0_array)
     trials              = 10 # number of comparisions each test (circuit depths)
-    tests               = 2
+    tests               = 1
     err_threshold       = 0.01
     T0                  = 100
 
@@ -562,6 +563,7 @@ if __name__ == "__main__":
         err_QCELS[p,:] = err_QCELS[p,:]/tests
         est_QCELS[p,:] = est_QCELS[p,:]/tests
         cost_list_avg_QCELS[p,:]=cost_list_avg_QCELS[p,:]/tests
+        cost_list_avg_QCELS[p,:]=2*cost_list_avg_QCELS[p,:]/tests #observables instead of time steps
 
 
     if model_type[0].upper() == 'T':
