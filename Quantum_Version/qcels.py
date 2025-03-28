@@ -328,17 +328,17 @@ if __name__ == "__main__":
     
     computation_type = 'S'
     output_file = True
-    p0_array            = np.array([0.1, 0.3, 0.5, 0.7, 0.9]) # initial overlap with the first eigenvector
+    p0_array            = np.array([0.1, 0.5, 0.9]) # initial overlap with the first eigenvector
     # p0_array            = np.arange(0.6, 0.99, 0.05)
     deltas              = 1 - np.sqrt(p0_array)
-    trials              = 10 # number of comparisions each test (circuit depths)
+    trials              = 8 # number of comparisions each test (circuit depths)
     tests               = 1
     err_threshold       = 0.01
     T0                  = 100
 
     # QCELS variables
     time_steps          = 5
-    epsilons            = np.array([0.1, 0.02, 0.009, 0.006, 0.003, 0.001, 0.0005, 0.0001, 0.00009, 0.00004])
+    epsilons            = np.array([0.1, 0.02, 0.009, 0.006, 0.003, 0.001, 0.0001, 0.00004])
     iterations          = [int(np.log2(1/time_steps/i)) for i in epsilons]
     err_QCELS           = np.zeros((len(p0_array),trials))
     est_QCELS           = np.zeros((len(p0_array),trials))
@@ -446,7 +446,7 @@ if __name__ == "__main__":
 
     qcs_QCELS = sum(qcs_QCELS, []) # flatten list
 
-    num_splits = 4*tests
+    num_splits = len(p0_array)*4*tests
     split = int(len(qcs_QCELS)/num_splits)
 
     qcs_QCELS_circuits = []
