@@ -1,0 +1,47 @@
+Testing p0 = 0.6 (1/2)
+    Running QCELS (1/10)
+      Estimated ground state energy = -2.260552598625309
+    Running QCELS (2/10)
+      Estimated ground state energy = -2.338818768624297
+    Running QCELS (3/10)
+      Estimated ground state energy = -2.358027774129688
+    Running QCELS (4/10)
+      Estimated ground state energy = -2.3517525806123403
+    Running QCELS (5/10)
+      Estimated ground state energy = -2.353599886323997
+    Running QCELS (6/10)
+      Estimated ground state energy = -2.3570732333646083
+    Running QCELS (7/10)
+      Estimated ground state energy = -2.356068734368631
+    Running QCELS (8/10)
+      Estimated ground state energy = -2.3562041607835837
+    Running QCELS (9/10)
+      Estimated ground state energy = -2.356141864744689
+    Running QCELS (10/10)
+      Estimated ground state energy = -2.356192354313185
+    Finished QCELS data
+
+Testing p0 = 0.8 (2/2)
+    Running QCELS (1/10)
+      Estimated ground state energy = -2.421639706320452
+    Running QCELS (2/10)
+      Estimated ground state energy = -2.340201812515669
+    Running QCELS (3/10)
+      Estimated ground state energy = -2.351340204606226
+    Running QCELS (4/10)
+      Estimated ground state energy = -2.35625699833121
+    Running QCELS (5/10)
+      Estimated ground state energy = -2.3565387215323694
+    Running QCELS (6/10)
+      Estimated ground state energy = -2.3558405105835707
+    Running QCELS (7/10)
+      Estimated ground state energy = -2.356311068575711
+    Running QCELS (8/10)
+      Estimated ground state energy = -2.3562078162906053
+    Running QCELS (9/10)
+      Estimated ground state energy = -2.3562237722830344
+    Running QCELS (10/10)
+      Estimated ground state energy = -2.356201486106169
+    Finished QCELS data
+
+Saved data to files starting with Q_Sim
