@@ -291,21 +291,18 @@ if __name__ == "__main__":
     model_type = 'T'
 
     if model_type[0].upper() == 'T':
+        mn = 'TFIM'
         print('Transverse Field Ising Model')
 
         # calculate the ground state with g = 1
         ham0 = tfim_1d.generate_ham(num_sites, J_T, 1.0)
         ground_state_0 = ham0.eigh(subset_by_index = (0,0))[1][:,0] # g = 1 ground state
 
-
         # plot original spectrum
         ham = tfim_1d.generate_ham(num_sites, J_T, g_T)
         eigenenergies, eigenstates = ham.eigh()
         ground_state = eigenstates[:,0]
         population_raw = np.abs(np.dot(eigenstates.conj().T, ground_state_0))**2
-        plt.plot(eigenenergies, population_raw, 'b-o')
-        plt.show()
-        print(eigenenergies[0])
 
         old_ham = ham
 
@@ -317,6 +314,7 @@ if __name__ == "__main__":
         population = np.abs(np.dot(eigenstates.conj().T, ground_state_0))**2
 
     if model_type[0].upper() == 'H':
+        mn = 'HSM'
         print('Heisenberg Spin Model')
 
         ham = create_hamiltonian(num_sites, 'SPIN', g = g_H, J=J_H, show_steps=False)
@@ -324,14 +322,13 @@ if __name__ == "__main__":
         ground_state = spin_states[:,0]
 
         pop = np.abs(np.dot(spin_states.conj().T, ground_state))**2
-
     
     computation_type = 'S'
     output_file = True
     p0_array            = np.array([0.1, 0.5, 0.9]) # initial overlap with the first eigenvector
     # p0_array            = np.arange(0.6, 0.99, 0.05)
     deltas              = 1 - np.sqrt(p0_array)
-    trials              = 8 # number of comparisions each test (circuit depths)
+    trials              = 10 # number of comparisions each test (circuit depths)
     tests               = 1
     err_threshold       = 0.01
     T0                  = 100
@@ -364,7 +361,7 @@ if __name__ == "__main__":
         data_name = "Q_Real"
 
     if output_file:
-        outfile = open("Output/"+str(data_name)+"_trans.txt", 'w')
+        outfile = open("Output/"+str(data_name)+"_"+str(mn)+"_trans.txt", 'w')
 
     ansatz = []
     for p in range(len(p0_array)):
@@ -407,24 +404,21 @@ if __name__ == "__main__":
             for j in range(iterations[trial] + 1):
                 tau = get_tau(j, time_steps, iterations[trial], T)
                 qcs_QCELS = []
-                #unitaries = (generate_TFIM_gates(num_sites, time_steps, tau, g, '../../../f3cpp'))
+                #unitaries = (generate_TFIM_gates(num_sites, time_steps, tau, g_T, '../../../f3cpp'))
                 for data_pair in range(time_steps):
                     t = tau*data_pair
                     mat = expm(-1j*ham*t)
                     controlled_U = UnitaryGate(mat).control(annotated="yes")
-                    #qcs_QCELS.append(create_HT_circuit(num_sites, unitaries[data_pair], W = 'Re', p0 = p0, backend = backend))
-                    #qcs_QCELS.append(create_HT_circuit(num_sites, unitaries[data_pair], W = 'Im', p0 = p0, backend = backend))
+                    #qcs_QCELS.append(create_HT_circuit(num_sites, unitaries[data_pair], W = 'Re', backend = backend, init_state = ground_state))
+                    #qcs_QCELS.append(create_HT_circuit(num_sites, unitaries[data_pair], W = 'Im', backend = backend, init_state = ground_state))
                     qcs_QCELS.append(create_HT_circuit(num_sites, controlled_U, W = 'Re', backend = backend, init_state = ansatz[p]))
                     qcs_QCELS.append(create_HT_circuit(num_sites, controlled_U, W = 'Im', backend = backend, init_state = ansatz[p]))
                 with open('Transpiled_Circuits/QCELS_p0='+str(p0)+'_Trial'+str(trial)+'_Iter='+str(j)+'.qpy', 'wb') as f:
                     qiskit.qpy.dump(qcs_QCELS, f)
         print('Finished transpiling for QCELS ', "(p0="+str(p0)+")")
-
-
     
     # Loads transpiled circuits
     QCELS_depths = []
-
     qcs_QCELS = []
 
     for p in range(len(p0_array)):
@@ -446,7 +440,7 @@ if __name__ == "__main__":
 
     qcs_QCELS = sum(qcs_QCELS, []) # flatten list
 
-    num_splits = len(p0_array)*4*tests
+    num_splits = len(p0_array)*tests
     split = int(len(qcs_QCELS)/num_splits)
 
     qcs_QCELS_circuits = []
@@ -492,7 +486,6 @@ if __name__ == "__main__":
                             re_p0 = counts_re['0']/T0
                         if counts_im.get('0') is not None:
                             im_p0 = counts_im['0']/T0
-                        #print('ReCounts', counts_re.get('0'), 'ImCounts', counts_im['0'])
                         
                         Re = 2*re_p0-1
                         Im = 2*im_p0-1 
@@ -510,7 +503,7 @@ if __name__ == "__main__":
     lambda_prior = -ham_shift
 
     if output_file:
-        outfile = open("Output/"+str(data_name)+"_run.txt", 'w')
+        outfile = open("Output/"+str(data_name)+"_"+str(mn)+"_run.txt", 'w')
 
     for p in range(len(p0_array)):
         p0=p0_array[p]
@@ -562,16 +555,15 @@ if __name__ == "__main__":
         rate_success_QCELS[p,:] = n_success_QCELS[:]/tests
         err_QCELS[p,:] = err_QCELS[p,:]/tests
         est_QCELS[p,:] = est_QCELS[p,:]/tests
-        cost_list_avg_QCELS[p,:]=cost_list_avg_QCELS[p,:]/tests
-        cost_list_avg_QCELS[p,:]=2*cost_list_avg_QCELS[p,:]/tests #observables instead of time steps
-
+        #cost_list_avg_QCELS[p,:]=cost_list_avg_QCELS[p,:]/tests
+        cost_list_avg_QCELS[p,:]=2*cost_list_avg_QCELS[p,:]/tests # observables instead of time steps
 
     if model_type[0].upper() == 'T':
-        np.savez('Data/'+data_name+'_result_TFIM_8sites_QCELS',name1=rate_success_QCELS,name2=max_T_QCELS,name3=cost_list_avg_QCELS,name4=err_QCELS,name5=est_QCELS)
+        np.savez('Data/'+data_name+'_result_TFIM_'+str(num_sites)+'sites_QCELS',name1=rate_success_QCELS,name2=max_T_QCELS,name3=cost_list_avg_QCELS,name4=err_QCELS,name5=est_QCELS)
         #np.savez('Data/'+data_name+'_TFIM_8sites_data',name1=spectrum,name2=population,name3=ground_energy_estimate_QCELS.x[0],
                 #name4=ground_energy_estimate_QCELS.x[1],name5=ground_energy_estimate_QCELS.x[2])
     if model_type[0].upper() == 'H':
-        np.savez('Data/'+data_name+'_result_HSM_8sites_QCELS',name1=rate_success_QCELS,name2=max_T_QCELS,name3=cost_list_avg_QCELS,name4=err_QCELS,name5=est_QCELS)
+        np.savez('Data/'+data_name+'_result_HSM_'+str(num_sites)+'sites_QCELS',name1=rate_success_QCELS,name2=max_T_QCELS,name3=cost_list_avg_QCELS,name4=err_QCELS,name5=est_QCELS)
 
     print("Saved data to files starting with", data_name)
     if output_file: print("Saved data to files starting with", data_name, file = outfile, flush=True)
