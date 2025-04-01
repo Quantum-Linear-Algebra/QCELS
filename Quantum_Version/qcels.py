@@ -20,7 +20,7 @@ from qiskit_ibm_runtime import SamplerV2 as Sampler
 from qiskit.circuit.library import UnitaryGate, QFT
 from scipy.linalg import expm
 
-ham_shift = 3*np.pi/4
+ham_shift = np.pi
 
 def flatten(xss):
     return [x for xs in xss for x in xs]
@@ -39,8 +39,8 @@ def create_HT_circuit(qubits, unitary, W = 'Re', backend = AerSimulator(), init_
     cr = ClassicalRegister(1)
     qc = QuantumCircuit(qr_ancilla, qr_eigenstate, cr)
     qc.h(qr_ancilla)
-    qc.initialize(init_state, qr_eigenstate[:])
-    #qc.h(qr_eigenstate)
+    #qc.initialize(init_state, qr_eigenstate[:])
+    qc.h(qr_eigenstate)
     qc.append(unitary, qargs = [qr_ancilla[:]] + qr_eigenstate[:] )
     # if W = Imaginary
     if W[0] == 'I': qc.sdg(qr_ancilla)
@@ -328,7 +328,7 @@ if __name__ == "__main__":
     p0_array            = np.array([0.1, 0.5, 0.9]) # initial overlap with the first eigenvector
     # p0_array            = np.arange(0.6, 0.99, 0.05)
     deltas              = 1 - np.sqrt(p0_array)
-    trials              = 10 # number of comparisions each test (circuit depths)
+    trials              = 8 # number of comparisions each test (circuit depths)
     tests               = 1
     err_threshold       = 0.01
     T0                  = 100
