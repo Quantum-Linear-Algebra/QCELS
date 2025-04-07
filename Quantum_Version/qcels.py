@@ -20,7 +20,7 @@ from qiskit_ibm_runtime import SamplerV2 as Sampler
 from qiskit.circuit.library import UnitaryGate, QFT
 from scipy.linalg import expm
 
-ham_shift = np.pi
+ham_shift = 3*np.pi/4
 
 def flatten(xss):
     return [x for xs in xss for x in xs]

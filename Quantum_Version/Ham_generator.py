@@ -42,10 +42,11 @@ def generate_TFIM_gates(qubits, steps, dt, g, location):
     os.rmdir("TFIM_Operators")
     return gates
 
-def create_hamiltonian(qubits, system, g=0, J=4, show_steps=False):
-    assert(system.upper() == "TFIM" or system.upper() == "SPIN")
+def create_hamiltonian(qubits, system, scale_factor, g=0, J=4, t=0, U=0, show_steps=False):
+    assert(system[0:4].upper() == "TFIM" or system[0:4].upper() == "SPIN" or system[0:4].upper() == "HUBB")
+    assert(scale_factor<=2*np.pi)
     H = np.zeros((2**qubits, 2**qubits), dtype=np.complex128)
-    if system.upper() == "TFIM":
+    if system[0:4].upper() == "TFIM":
         # construct the Hamiltonian
         # with Pauli Operators in Qiskit ^ represents a tensor product
         if show_steps: print("H = ", end='')
@@ -68,8 +69,8 @@ def create_hamiltonian(qubits, system, g=0, J=4, show_steps=False):
             H += -g*temp.to_matrix()
             if show_steps: print("-"+str(g)+"*"+str(temp)+" ", end='')
         if show_steps: print("\n")
-        
-    elif system.upper() == "SPIN":
+    elif system[0:4].upper() == "SPIN":
+        assert(J!=0)
         def S(index, coupling):
             temp = Pauli('')
             for j in range(qubits):
@@ -88,20 +89,52 @@ def create_hamiltonian(qubits, system, g=0, J=4, show_steps=False):
         H += S(qubits-1, 'Z')@S(0, 'Z')
         H *= J
         if show_steps: print(H)
+    elif system[0:4].upper() == "HUBB":
+        Sd = [[0,0],[1,0]]
+        S = [[0,1],[0,0]]
+        I = np.eye(2)
+        op1 = np.kron(Sd, S)
+        op2 = np.kron(S, Sd)
+        left_right_hopping_term = np.zeros((2**qubits, 2**qubits), dtype=np.complex128)
+        for op in [op1, op2]:
+            for place in range(qubits-1):
+                temp = [1]
+                for index in range(qubits-1):
+                    if index == place: temp = np.kron(temp, op) 
+                    else: temp = np.kron(temp, I) 
+                left_right_hopping_term+=temp
+        left_right_hopping_term *=-t
 
+        op1 = np.kron(Sd, Sd)
+        op2 = np.kron(S, S)
+        num = op1@op2
+        up_down_hopping_term = np.zeros((2**qubits, 2**qubits), dtype=np.complex128)
+        for place in range(qubits-1):
+            temp = [1]
+            for index in range(qubits-1):
+                if index == place: temp = np.kron(temp, num) 
+                else: temp = np.kron(temp, I) 
+            up_down_hopping_term+=temp
+        up_down_hopping_term*=U
+
+        H = up_down_hopping_term+left_right_hopping_term
+            
     if show_steps:
-        eigenvalues = np.linalg.eigvals(H)
-        print("Original eigenvalues:", eigenvalues)
+        val, vec = np.linalg.eigh(H)
+        print("Original eigenvalues:", val)
+        print("Original eigenvectors:\n", vec)
     
     # scale eigenvalues of the Hamiltonian
-    H = scale_factor*H / np.linalg.norm(H, ord=2)
-    
+    if show_steps: print("Norm =", np.linalg.norm(H, ord=2))
+    H = scale_factor*H/np.linalg.norm(H, ord=2)
     # rotate matrix so that it will be positive definite (not nessary in this usecase)
-    # H += np.pi*np.eye(2**qubits)
+    # H += pi*np.eye(2**qubits)
 
     if show_steps:
-        eigenvalues = np.linalg.eigvals(H)
-        print("Scaled eigenvalues of the hamiltonian:\n", np.linalg.eigvals(H))
-        min_eigenvalue = np.min(eigenvalues)
+        val, vec = np.linalg.eigh(H)
+        print("Scaled eigenvalues:", val)
+        print("Scaled eigenvectors:\n", vec)
+        min_eigenvalue = np.min(val)
         print("Lowest energy eigenvalue", min_eigenvalue); print()
+    
     return H
