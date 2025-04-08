@@ -42,9 +42,9 @@ def generate_TFIM_gates(qubits, steps, dt, g, location):
     os.rmdir("TFIM_Operators")
     return gates
 
-def create_hamiltonian(qubits, system, scale_factor, g=0, J=4, t=0, U=0, show_steps=False):
+def create_hamiltonian(qubits, system, scale_factor, g=0, J=4, t=0, U=0, x=1, y=1, show_steps=False):
     assert(system[0:4].upper() == "TFIM" or system[0:4].upper() == "SPIN" or system[0:4].upper() == "HUBB")
-    assert(scale_factor<=2*np.pi)
+    # assert(abs(scale_factor)<=2*pi)
     H = np.zeros((2**qubits, 2**qubits), dtype=np.complex128)
     if system[0:4].upper() == "TFIM":
         # construct the Hamiltonian
@@ -90,21 +90,40 @@ def create_hamiltonian(qubits, system, scale_factor, g=0, J=4, t=0, U=0, show_st
         H *= J
         if show_steps: print(H)
     elif system[0:4].upper() == "HUBB":
-        Sd = [[0,0],[1,0]]
-        S = [[0,1],[0,0]]
+        assert(x>=0 and y>=0)
+        assert(x*y == qubits)
+
+        # coupling portion
+        Sd = np.array([[0,0],[1,0]])
+        S = np.array([[0,1],[0,0]])
         I = np.eye(2)
-        op1 = np.kron(Sd, S)
-        op2 = np.kron(S, Sd)
+        # op1 = np.kron(Sd, S)
+        # op2 = np.kron(S, Sd)
         left_right_hopping_term = np.zeros((2**qubits, 2**qubits), dtype=np.complex128)
-        for op in [op1, op2]:
-            for place in range(qubits-1):
-                temp = [1]
-                for index in range(qubits-1):
-                    if index == place: temp = np.kron(temp, op) 
-                    else: temp = np.kron(temp, I) 
-                left_right_hopping_term+=temp
+        for op in [Sd]:
+            for site in range(qubits):
+                curr_x = site%x
+                curr_y = site//x%y
+                # couple sites in square latice
+                neighbors = []
+                if curr_x != 0:   neighbors.append((site-1)%qubits)
+                if curr_x != x-1: neighbors.append((site+1)%qubits)
+                if curr_y != 0:   neighbors.append((site+x)%qubits)
+                if curr_y != y-1: neighbors.append((site-x)%qubits)
+
+                for neighbor in neighbors:
+                    temp = [1]
+                    for site_ in range(qubits):
+                        # print(site_)
+                        # print(site_ == site, site_ == neighbor)
+                        if site_ == site: temp = np.kron(temp, op)
+                        elif site_ == neighbor: temp = np.kron(temp, op.T)
+                        else: temp = np.kron(temp, I) 
+                    if temp.shape[0] == 64: print(temp)
+                    left_right_hopping_term+=temp
         left_right_hopping_term *=-t
 
+        # number operator portion
         op1 = np.kron(Sd, Sd)
         op2 = np.kron(S, S)
         num = op1@op2

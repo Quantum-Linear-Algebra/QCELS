@@ -47,7 +47,7 @@ def create_HT_circuit(qubits, unitary, W = 'Re', backend = AerSimulator(), init_
     qc.h(qr_ancilla)
     qc.measure(qr_ancilla[0],cr[0])
     #print(qc)
-    trans_qc = transpile(qc, backend)
+    trans_qc = transpile(qc, backend, optimization_level=3)
     return trans_qc
 
 def get_estimated_ground_energy_rough(d,delta,spectrum,population,Nsample,Nbatch):
