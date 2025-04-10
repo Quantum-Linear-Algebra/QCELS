@@ -39,9 +39,9 @@ def create_HT_circuit(qubits, unitary, W = 'Re', backend = AerSimulator(), init_
     cr = ClassicalRegister(1)
     qc = QuantumCircuit(qr_ancilla, qr_eigenstate, cr)
     qc.h(qr_ancilla)
-    #qc.initialize(init_state, qr_eigenstate[:])
-    qc.h(qr_eigenstate)
-    qc.append(unitary, qargs = [qr_ancilla[:]] + qr_eigenstate[:] )
+    qc.initialize(init_state, qr_eigenstate[:])
+    #qc.h(qr_eigenstate)
+    qc.append(unitary, qargs = [qr_ancilla[:]] + qr_eigenstate[:])
     # if W = Imaginary
     if W[0] == 'I': qc.sdg(qr_ancilla)
     qc.h(qr_ancilla)
