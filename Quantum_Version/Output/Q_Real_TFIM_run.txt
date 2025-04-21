@@ -1,40 +1,27 @@
-Testing p0 = 0.6 (1/3)
+Testing p0 = 0.7 (1/2)
     Running QCELS (1/5)
-      Estimated ground state energy = -6.734519871456559
+      Estimated ground state energy = -3.1516809062765407
     Running QCELS (2/5)
-      Estimated ground state energy = -13.321705631357567
+      Estimated ground state energy = -1.9925520436053101
     Running QCELS (3/5)
-      Estimated ground state energy = -5.212287948174472
+      Estimated ground state energy = -2.313563507352245
     Running QCELS (4/5)
-      Estimated ground state energy = -7.963063952866345
+      Estimated ground state energy = 4.274029276563439
     Running QCELS (5/5)
-      Estimated ground state energy = -3.783691590809336
+      Estimated ground state energy = 2.0207390549809308
     Finished QCELS data
 
-Testing p0 = 0.8 (2/3)
+Testing p0 = 0.8 (2/2)
     Running QCELS (1/5)
-      Estimated ground state energy = -0.6598126476251388
+      Estimated ground state energy = -1.736493332053943
     Running QCELS (2/5)
-      Estimated ground state energy = -1.2996109587678235
+      Estimated ground state energy = -2.3750091564661195
     Running QCELS (3/5)
-      Estimated ground state energy = -4.400964191244126
+      Estimated ground state energy = -2.34010136680467
     Running QCELS (4/5)
-      Estimated ground state energy = 0.2271311510791893
+      Estimated ground state energy = -1.8843725548985268
     Running QCELS (5/5)
-      Estimated ground state energy = -1.9581662053466806
-    Finished QCELS data
-
-Testing p0 = 1.0 (3/3)
-    Running QCELS (1/5)
-      Estimated ground state energy = -0.8127807149415051
-    Running QCELS (2/5)
-      Estimated ground state energy = 0.905084051545146
-    Running QCELS (3/5)
-      Estimated ground state energy = 4.187121658350613
-    Running QCELS (4/5)
-      Estimated ground state energy = -2.818660442305751
-    Running QCELS (5/5)
-      Estimated ground state energy = -2.7229826479984798
+      Estimated ground state energy = -2.3561523845480172
     Finished QCELS data
 
 Saved data to files starting with Q_Real

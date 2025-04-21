@@ -55,6 +55,11 @@ def generate_TFIM_gates(qubits, steps, dt, g, scaling, location):
 
     es, vs = eigh(H)
     ground_state = vs[:,0]
+
+    # make negative exponential
+    g = -g
+    coupling = -coupling
+    
     gates = []
     if not os.path.exists("TFIM_Operators"):
         os.mkdir("TFIM_Operators")
@@ -92,7 +97,7 @@ def generate_TFIM_gates(qubits, steps, dt, g, scaling, location):
         gates.append(gate)
         os.remove("TFIM_Operators/n="+str(qubits)+"_g="+str(g)+"_dt="+str(dt)+"_i="+str(step+1)+".qasm")
     os.rmdir("TFIM_Operators")
-    return gates, ground_state
+    return gates, ground_state, es
 
 def create_hamiltonian(qubits, system, scale_factor, g=0, J=4, t=0, U=0, x=1, y=1, show_steps=False):
     assert(system[0:4].upper() == "TFIM" or system[0:4].upper() == "SPIN" or system[0:4].upper() == "HUBB")
