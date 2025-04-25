@@ -1,2 +1,0 @@
-Testing p0 = 0.6 (1/2)
-Testing p0 = 0.8 (2/2)

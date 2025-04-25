@@ -141,7 +141,7 @@ def qcels_opt(ts, Z_est, x0, bounds = None, method = 'SLSQP'):
 def get_tau(j, time_steps, iterations, T):
     return T/time_steps/(2**(iterations-j))
 
-def qcels_largeoverlap_new(Z_est, time_steps, lambda_prior, T):
+def qcels_largeoverlap(Z_est, time_steps, lambda_prior, T):
     """Multi-level QCELS for a system with a large initial overlap.
 
     Description: The code of using Multi-level QCELS to estimate the ground state energy for a systems with a large initial overlap
@@ -530,7 +530,7 @@ if __name__ == "__main__":
                 epsilon = epsilons[trial]
                 T = 1/epsilon
                 #lambda_prior = spectrum[0]
-                ground_energy_estimate_QCELS, cosT_depth_list_this = qcels_largeoverlap_new(Z_ests[p][test][trial], time_steps, lambda_prior, T)
+                ground_energy_estimate_QCELS, cosT_depth_list_this = qcels_largeoverlap(Z_ests[p][test][trial], time_steps, lambda_prior, T)
                 #ground_energy_estimate_QCELS, cosT_depth_list_this, max_T_QCELS_this = qcels_largeoverlap()
                 
                 #cosT_depth_list_this = QCELS_depths[p][test][trial]
