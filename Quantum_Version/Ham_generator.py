@@ -1,12 +1,12 @@
 from qiskit import QuantumCircuit
-from qiskit.quantum_info import Pauli
+from qiskit.quantum_info import Pauli, Operator
 from qcels import ham_shift as scale_factor
 import numpy as np
 from numpy.linalg import eigh
 import subprocess
 import os
 
-def generate_TFIM_gates(qubits, steps, dt, g, scaling, location):
+def generate_TFIM_gates(qubits, steps, dt, g, scaling, location, trotter = 1):
     exe = location+"/release/examples/f3c_time_evolution_TFYZ"
     
     # calculate new scaled parameters
@@ -28,11 +28,11 @@ def generate_TFIM_gates(qubits, steps, dt, g, scaling, location):
                 temp ^= Pauli('I')
         H += -g*temp.to_matrix()
     n = 2**qubits
+
     eigs, _ = eigh(H)
     largest_eig = eigs[-1]
     coupling = scaling/largest_eig
     g *= scaling/largest_eig
-
 
     # calculate scaled Hamiltonian
     H = np.zeros((n, n), dtype=np.complex128)
@@ -52,9 +52,6 @@ def generate_TFIM_gates(qubits, steps, dt, g, scaling, location):
             else:
                 temp ^= Pauli('I')
         H += -g*temp.to_matrix()
-
-    es, vs = eigh(H)
-    ground_state = vs[:,0]
 
     # make negative exponential
     g = -g
@@ -79,7 +76,9 @@ def generate_TFIM_gates(qubits, steps, dt, g, scaling, location):
     gate = qc.to_gate(label = "TFIM 0").control()
     gates.append(gate)
     os.remove("TFIM_Operators/n="+str(qubits)+"_g="+str(g)+"_dt="+str(dt)+"_i=1.qasm")
-    steps=steps-1
+    steps -= 1
+    steps *= trotter
+    dt /= trotter
 
     with open("TFIM_Operators/Operator_Generator.ini", 'w+') as f:
         f.write("[Qubits]\nnumber = "+str(qubits)+"\n\n")
@@ -87,17 +86,18 @@ def generate_TFIM_gates(qubits, steps, dt, g, scaling, location):
         f.write("[Jy]\nvalue = 0\n\n")
         f.write("[Jz]\nvalue = "+str(coupling)+"\n\n")
         f.write("[hx]\nramp = constant\nvalue = "+str(g)+"\n\n")
-        f.write("[Output]\nname = TFIM_Operators/n="+str(qubits)+"_g="+str(g)+"_dt="+str(dt)+"_i=\nimin = 1\nimax = "+str(steps+1)+"\nstep = 1\n")
+        f.write("[Output]\nname = TFIM_Operators/n="+str(qubits)+"_g="+str(g)+"_dt="+str(dt)+"_i=\nimin = 1\nimax = "+str(steps+1)+"\nstep = "+str(1)+"\n")
     exe = location+"/release/examples/f3c_time_evolution_TFYZ"
     subprocess.run([exe, "TFIM_Operators/Operator_Generator.ini"])
     os.remove("TFIM_Operators/Operator_Generator.ini")
-    for step in range(steps):
-        qc = QuantumCircuit.from_qasm_file("TFIM_Operators/n="+str(qubits)+"_g="+str(g)+"_dt="+str(dt)+"_i="+str(step+1)+".qasm")
-        gate = qc.to_gate(label = "TFIM "+str(step+1)).control()
-        gates.append(gate)
-        os.remove("TFIM_Operators/n="+str(qubits)+"_g="+str(g)+"_dt="+str(dt)+"_i="+str(step+1)+".qasm")
+    for step in range(1, steps + 1):
+        if step%trotter == 0:
+            qc = QuantumCircuit.from_qasm_file("TFIM_Operators/n="+str(qubits)+"_g="+str(g)+"_dt="+str(dt)+"_i="+str(step)+".qasm")
+            gate = qc.to_gate(label = "TFIM "+str(step)).control()
+            gates.append(gate)
+        os.remove("TFIM_Operators/n="+str(qubits)+"_g="+str(g)+"_dt="+str(dt)+"_i="+str(step)+".qasm")
     os.rmdir("TFIM_Operators")
-    return gates, ground_state, es
+    return gates, H
 
 def create_hamiltonian(qubits, system, scale_factor, g=0, J=4, t=0, U=0, x=1, y=1, show_steps=False):
     assert(system[0:4].upper() == "TFIM" or system[0:4].upper() == "SPIN" or system[0:4].upper() == "HUBB")
