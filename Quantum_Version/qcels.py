@@ -25,14 +25,6 @@ ham_shift = 3*np.pi/4
 def flatten(xss):
     return [x for xs in xss for x in xs]
 
-def modify_spectrum(ham):
-    arr_ham = ham.toarray().astype(np.complex128)
-    norm_ham = (ham_shift)*arr_ham/np.linalg.norm(arr_ham, ord = 2)
-    return norm_ham
-
-def initial_state_angle(p):
-    return 2 * np.arccos((np.sqrt(2*p) + np.sqrt(2 * (1 - p)))/2)
-
 def create_HT_circuit(qubits, unitary, W = 'Re', backend = AerSimulator(), init_state = []):
     qr_ancilla = QuantumRegister(1)
     qr_eigenstate = QuantumRegister(qubits)
@@ -49,78 +41,6 @@ def create_HT_circuit(qubits, unitary, W = 'Re', backend = AerSimulator(), init_
     #print(qc)
     trans_qc = transpile(qc, backend, optimization_level=3)
     return trans_qc
-
-def get_estimated_ground_energy_rough(d,delta,spectrum,population,Nsample,Nbatch):
-    
-    F_coeffs = fourier_filter.F_fourier_coeffs(d,delta)
-
-    compute_prob_X = lambda T: generate_cdf.compute_prob_X_(T,spectrum,population)
-    compute_prob_Y = lambda T: generate_cdf.compute_prob_Y_(T,spectrum,population)
-
-
-    outcome_X_arr, outcome_Y_arr, J_arr = generate_cdf.sample_XY(compute_prob_X, 
-                                compute_prob_Y, F_coeffs, Nsample, Nbatch) #Generate sample to calculate CDF
-
-    total_evolution_time = np.sum(np.abs(J_arr))
-    average_evolution_time = total_evolution_time/(Nsample*Nbatch)
-    maxi_evolution_time=max(np.abs(J_arr[0,:]))
-
-    Nx = 10
-    Lx = np.pi/3
-    ground_energy_estimate = 0.0
-    count = 0
-    #---"binary" search
-    while Lx > delta:
-        x = (2*np.arange(Nx)/Nx-1)*Lx +  ground_energy_estimate
-        y_avg = generate_cdf.compute_cdf_from_XY(x, outcome_X_arr, outcome_Y_arr, J_arr, F_coeffs)#Calculate the value of CDF
-        indicator_list = y_avg > (population[0]/2.05)
-        ix = np.nonzero(indicator_list)[0][0]
-        ground_energy_estimate = x[ix]
-        Lx = Lx/2
-        count += 1
-    
-    return ground_energy_estimate, count*total_evolution_time, maxi_evolution_time
-
-def generate_filtered_Z_est(spectrum,population,t,x,d,delta,Nsample,Nbatch):
-    
-    F_coeffs = fourier_filter.F_fourier_coeffs(d,delta)
-    compute_prob_X = lambda t_: generate_cdf.compute_prob_X_(t_,spectrum,population)
-    compute_prob_Y = lambda t_: generate_cdf.compute_prob_Y_(t_,spectrum,population)
-    #Calculate <\psi|F(H)\exp(-itH)|\psi>
-    outcome_X_arr, outcome_Y_arr, J_arr = generate_cdf.sample_XY_QCELS(compute_prob_X, 
-                                compute_prob_Y, F_coeffs, Nsample, Nbatch,t) #Generate samples using Hadmard test
-    y_avg = generate_cdf.compute_cdf_from_XY_QCELS(x, outcome_X_arr, outcome_Y_arr, J_arr, F_coeffs) 
-    total_time = np.sum(np.abs(J_arr))+t*Nsample*Nbatch
-    max_time= max(np.abs(J_arr[0,:]))+t
-    return y_avg, total_time, max_time
-
-
-def generate_Z_theory(spectrum,population,t,Nsample):
-    Re=0
-    Im=0
-    z=np.dot(population,np.exp(-1j*spectrum*t))
-    Re_true=(1+z.real)/2
-    Im_true=(1+z.imag)/2
-    #Simulate Hadmard test
-    for nt in range(Nsample):
-        if np.random.uniform(0,1)<Re_true:
-           Re+=1
-    for nt2 in range(Nsample):
-        if np.random.uniform(0,1)<Im_true:
-           Im+=1
-    Z_est = complex(2*Re/Nsample-1,2*Im/Nsample-1)
-    max_time = t
-    total_time = t * Nsample
-    return Z_est, total_time, max_time 
-
-def generate_spectrum_population(eigenenergies, population, p):
-    
-    p = np.array(p)
-    spectrum = eigenenergies * (ham_shift) / np.max(np.abs(eigenenergies))#normalize the spectrum
-    q = population
-    num_p = p.shape[0]
-    q[0:num_p] = p/(1-np.sum(p))*np.sum(q[num_p:])
-    return spectrum, q/np.sum(q)
 
 def qcels_opt_fun(x, ts, Z_est):
     NT = ts.shape[0]
@@ -192,77 +112,6 @@ def qcels_largeoverlap(Z_est, time_steps, lambda_prior, T):
     print("      Finished Iterations", flush = True)
     return res, t_ns
 
-def qcels_smalloverlap(spectrum, population, T, NT, d, rel_gap, err_tol_rough, Nsample_rough, Nsample):
-    """Multi-level QCELS with a filtered data set for a system with a small initial overlap.
-
-    Description: The codes of using Multi-level QCELS and eigenvalue filter to estimate the ground state energy for
-    a system with a small initial overlap
-
-    Args: eigenvalues of the Hamiltonian: spectrum; 
-    overlaps between the initial state and eigenvectors: population; 
-    the depth for generating the data set: T; 
-    number of data pairs: NT; 
-    number of samples for constructing the eigenvalue filter: Nsample_rough; 
-    number of samples for generating the data set: Nsample; 
-    initial guess of \lambda_0: lambda_prior
-    
-    Returns: an estimation of \lambda_0; 
-    maximal evolution time T_{max}; 
-    total evolution time T_{total}
-
-    """
-    total_time_all = 0.
-    max_time_all = 0.
-
-    lambda_prior, total_time_prior, max_time_prior = get_estimated_ground_energy_rough(
-            d,err_tol_rough,spectrum,population,Nsample_rough,Nbatch=1) #Get the rough estimation of the ground state energy
-    x = lambda_prior + rel_gap/2 #center of the eigenvalue filter
-    total_time_all += total_time_prior
-    max_time_all = max(max_time_all, max_time_prior)
-    
-    N_level=int(np.log2(T/NT))
-    Z_est=np.zeros(NT,dtype = 'complex')
-    tau=T/NT/(2**N_level)
-    ts=tau*np.arange(NT)
-    for i in range(NT):
-        Z_est[i], total_time, max_time=generate_filtered_Z_est(
-                spectrum,population,ts[i],x,d,err_tol_rough,Nsample_rough,Nbatch=1)#Approximate <\psi|\exp(-itH)|\psi> using Hadmard test
-        total_time_all += total_time
-        max_time_all = max(max_time_all, max_time)
-    #Step up and solve the optimization problem
-    x0=np.array((0.5,0,lambda_prior))
-    res = qcels_opt(ts, Z_est, x0)#Solve the optimization problem
-    #Update initial guess for next iteration
-    ground_coefficient_QCELS=res.x[0]
-    ground_coefficient_QCELS2=res.x[1]
-    ground_energy_estimate_QCELS=res.x[2]
-    #Update the estimation interval
-    lambda_min=ground_energy_estimate_QCELS-np.pi/(2*tau)
-    lambda_max=ground_energy_estimate_QCELS+np.pi/(2*tau)
-    #Iteration
-    for n_QCELS in range(N_level):
-        Z_est=np.zeros(NT,dtype = 'complex')
-        tau=T/NT/(2**(N_level-n_QCELS-1))
-        ts=tau*np.arange(NT)
-        for i in range(NT):
-            Z_est[i], total_time, max_time=generate_filtered_Z_est(
-                    spectrum,population,ts[i],x,d,err_tol_rough,Nsample,Nbatch=1)#Approximate <\psi|\exp(-itH)|\psi> using Hadmard test
-            total_time_all += total_time
-            max_time_all = max(max_time_all, max_time)
-        #Step up and solve the optimization problem
-        x0=np.array((ground_coefficient_QCELS,ground_coefficient_QCELS2,ground_energy_estimate_QCELS))
-        bnds=((-np.inf,np.inf),(-np.inf,np.inf),(lambda_min,lambda_max))
-        res = qcels_opt(ts, Z_est, x0, bounds=bnds)#Solve the optimization problem
-        #Update initial guess for next iteration
-        ground_coefficient_QCELS=res.x[0]
-        ground_coefficient_QCELS2=res.x[1]
-        ground_energy_estimate_QCELS=res.x[2]
-        #Update the estimation interval
-        lambda_min=ground_energy_estimate_QCELS-np.pi/(2*tau)
-        lambda_max=ground_energy_estimate_QCELS+np.pi/(2*tau)
-
-    return ground_energy_estimate_QCELS, total_time_all, max_time_all
-
 
 if __name__ == "__main__":
     from matplotlib import pyplot as plt
@@ -287,9 +136,7 @@ if __name__ == "__main__":
     matplotlib.rcParams['lines.markersize'] = 10
     np.set_printoptions(threshold=np.inf)
 
-    noise_model = NoiseModel()
-
-    num_sites = 8
+    num_sites = 2
 
     #TFIM parameters
     J_T = 1
@@ -356,8 +203,6 @@ if __name__ == "__main__":
         driver = PySCFDriver(
             atom=f'H .0 .0 .0; H .0 .0 {distance}',
             unit=DistanceUnit.ANGSTROM,
-            #charge=0,
-            #spin=0,
             basis='sto3g'
         )
 
@@ -385,9 +230,6 @@ if __name__ == "__main__":
 
     # QCELS variables
     time_steps          = 5
-    #epsilons           = np.array([0.5, 0.1, 0.02, 0.009, 0.003, 0.001, 0.0005, 0.0002, 0.00009, 0.00004])
-    #epsilons           = np.array([0.5, 0.02, 0.003, 0.0005, 0.00009])
-    #iterations         = [int(np.log2(1/i) + 1) for i in epsilons]
     iterations          = np.arange(trials) + 1 + [i for i in range(trials)]
     epsilons            = [1/(2**(i-1)) for i in iterations]
     err_QCELS           = np.zeros((len(p0_array),trials))
@@ -400,11 +242,8 @@ if __name__ == "__main__":
     if computation_type[0].upper() == 'S':
         print("\nQUANTUM SIMULATION SELECTED\n")
 
-        #backend = AerSimulator()
+        noise_model = NoiseModel()
         backend = AerSimulator(noise_model=noise_model)
-        # backend = AerSimulator(noise_model=noise_model,
-        #                   coupling_map=coupling_map,
-        #                   basis_gates=basis_gates)
         data_name = "Q_Sim"
 
     if computation_type[0].upper() == 'R':
@@ -435,11 +274,98 @@ if __name__ == "__main__":
         print(np.abs(np.vdot(psi, phi))**2)
         ansatz.append(phi)
 
+    # Create HT for lambda_prior
+
+    circs = []
+    if Ham_type[0].upper() == 'F':
+        print('F3C++')
+        for p in range(len(p0_array)):
+            trans_qc1 = create_HT_circuit(num_sites, unitaries[-1], W = 'Re', backend = backend, init_state = ansatz[p])
+            trans_qc2 = create_HT_circuit(num_sites, unitaries[-1], W = 'Im', backend = backend, init_state = ansatz[p])
+            
+
+            circs.append(trans_qc1)
+            circs.append(trans_qc2)
+
+        sampler = Sampler(backend)
+        job = sampler.run(circs, shots = 10000)
+        lambda_results = job.result()
+
+    if Ham_type[0].upper() == 'Q':
+        print('Qiskit')
+        for p in range(len(p0_array)):
+            mat = expm(-1j*ham)
+            controlled_U = UnitaryGate(mat).control(annotated="yes")
+
+            trans_qc1 = create_HT_circuit(num_sites, controlled_U, W = 'Re', backend = backend, init_state = ansatz[p])
+            trans_qc2 = create_HT_circuit(num_sites, controlled_U, W = 'Im', backend = backend, init_state = ansatz[p])
+
+            circs.append(trans_qc1)
+            circs.append(trans_qc2)
+
+        sampler = Sampler(backend)
+        job = sampler.run(circs, shots = 10000)
+        lambda_results = job.result()
+
+    # Get lambda_prior
+    lambda_priors = []
+
+    re_data1 = lambda_results[0].data
+    im_data1 = lambda_results[1].data
+
+    re_data2 = lambda_results[2].data
+    im_data2 = lambda_results[3].data
+
+
+    counts_re1 = re_data1[list(re_data1.keys())[0]].get_counts()
+    counts_im1 = im_data1[list(im_data1.keys())[0]].get_counts()
+
+    counts_re2 = re_data2[list(re_data2.keys())[0]].get_counts()
+    counts_im2 = im_data2[list(im_data2.keys())[0]].get_counts()
+
+
+    re_p0 = im_p0 = 0
+    if counts_re1.get('0') is not None:
+        re_p0 = counts_re1['0']/10000
+    if counts_im1.get('0') is not None:
+        im_p0 = counts_im1['0']/10000
+
+    Re = 2*re_p0 - 1
+    Im = 2*im_p0 - 1
+
+    Angle = np.arccos(Re)
+    if  np.arcsin(Im)<0:
+        Phase = 2*np.pi - Angle
+    else:
+        Phase = Angle
+
+    lambda_prior = -Phase
+    lambda_priors.append(lambda_prior)
+
+
+    re_p0 = im_p0 = 0
+    if counts_re2.get('0') is not None:
+        re_p0 = counts_re2['0']/10000
+    if counts_im2.get('0') is not None:
+        im_p0 = counts_im2['0']/10000
+
+    Re = 2*re_p0 - 1
+    Im = 2*im_p0 - 1
+
+    Angle = np.arccos(Re)
+    if  np.arcsin(Im)<0:
+        Phase = 2*np.pi - Angle
+    else:
+        Phase = Angle
+
+    lambda_prior = -Phase
+    lambda_priors.append(lambda_prior)
+
+    print('lambda_priors: ', lambda_priors, '\n target: ', eigenenergies[0])
+
     # Transpiles circuits
     for p in range(len(p0_array)):
         p0=p0_array[p]
-        n_success_QCELS= np.zeros(trials)
-        n_success_QPE= np.zeros(trials)
 
         print("Testing p0 =", p0,"("+str(p+1)+"/"+str(len(p0_array))+")")
 
@@ -499,70 +425,7 @@ if __name__ == "__main__":
 
     qcs_QCELS = sum(qcs_QCELS, []) # flatten list
 
-    # Create HT for lambda_prior
-
-    lambda_results = []
-    circs = []
-    if Ham_type[0].upper() == 'F':
-        print('F3C++')
-        for p in range(len(p0_array)):
-            trans_qc2 = create_HT_circuit(num_sites, unitaries[-1], W = 'Im', backend = backend, init_state = ansatz[p])
-            trans_qc1 = create_HT_circuit(num_sites, unitaries[-1], W = 'Re', backend = backend, init_state = ansatz[p])
-
-            circs = [trans_qc1, trans_qc2]
-            sampler = Sampler(backend)
-
-            job = sampler.run(circs, shots = 10000)
-            result = job.result()
-            lambda_results.append(result)
-
-    if Ham_type[0].upper() == 'Q':
-        print('Qiskit')
-        for p in range(len(p0_array)):
-            mat = expm(-1j*ham)
-            controlled_U = UnitaryGate(mat).control(annotated="yes")
-
-            trans_qc1 = create_HT_circuit(num_sites, controlled_U, W = 'Re', backend = backend, init_state = ansatz[p])
-            trans_qc2 = create_HT_circuit(num_sites, controlled_U, W = 'Im', backend = backend, init_state = ansatz[p])
-
-            circs = [trans_qc1, trans_qc2]
-            sampler = Sampler(backend)
-
-            job = sampler.run(circs, shots = 10000)
-            result = job.result()
-            lambda_results.append(result)
-
-    # Get lambda_prior
-    lambda_priors = []
-
-    for p in range(len(p0_array)):
-        re_data = lambda_results[p][0].data
-        im_data = lambda_results[p][1].data
-        counts_re = re_data[list(re_data.keys())[0]].get_counts()
-        counts_im = im_data[list(im_data.keys())[0]].get_counts()
-
-        re_p0 = im_p0 = 0
-        if counts_re.get('0') is not None:
-            re_p0 = counts_re['0']/10000
-        if counts_im.get('0') is not None:
-            im_p0 = counts_im['0']/10000
-
-        Re = 2*re_p0 - 1
-        Im = 2*im_p0 - 1
-
-        Angle = np.arccos(Re)
-        if  np.arcsin(Im)<0:
-            Phase = 2*np.pi - Angle
-        else:
-            Phase = Angle
-
-        lambda_prior = -Phase
-        lambda_priors.append(lambda_prior)
-
-    print('lambda_priors: ', lambda_priors, '\n target: ', eigenenergies[0])
-
-    #num_splits = len(p0_array)*tests
-    num_splits = 2
+    num_splits = 1
     split = int(len(qcs_QCELS)/num_splits)
 
     qcs_QCELS_circuits = []
@@ -624,7 +487,6 @@ if __name__ == "__main__":
         lambda_prior = lambda_priors[p]
         
         n_success_QCELS= np.zeros(trials)
-        n_success_QPE= np.zeros(trials)
 
         print("Testing p0 =", p0,"("+str(p+1)+"/"+str(len(p0_array))+")")
 
@@ -632,7 +494,7 @@ if __name__ == "__main__":
 
         for test in range(tests):
 
-            print("  Generating QCELS and QPE data", "(p0="+str(p0)+")","("+str(test+1)+"/"+str(tests)+")")
+            print("  Generating QCELS data", "(p0="+str(p0)+")","("+str(test+1)+"/"+str(tests)+")")
             #------------------QCELS-----------------
             for trial in range(trials):
                 print("    Running QCELS", "("+str(trial+1)+"/"+str(trials)+")")
@@ -664,14 +526,11 @@ if __name__ == "__main__":
         err_QCELS[p,:] = err_QCELS[p,:]/tests
         est_QCELS[p,:] = est_QCELS[p,:]/tests
         #cost_list_avg_QCELS[p,:]=cost_list_avg_QCELS[p,:]/tests
-        cost_list_avg_QCELS[p,:]=2*cost_list_avg_QCELS[p,:]/tests # observables instead of time steps
+        cost_list_avg_QCELS[p,:]=2*T0*cost_list_avg_QCELS[p,:]/tests # total shots instead of time steps
 
 
-    #model_type = 'M' HH molecule
     if model_type[0].upper() == 'T':
         np.savez('Data/'+data_name+'_result_TFIM_'+str(num_sites)+'sites_QCELS_long',name1=rate_success_QCELS,name2=cost_list_avg_QCELS,name3=err_QCELS,name4=est_QCELS,name5=eigenenergies[0],name6=p0_array)
-        #np.savez('Data/'+data_name+'_TFIM_8sites_data',name1=spectrum,name2=population,name3=ground_energy_estimate_QCELS.x[0],
-                #name4=ground_energy_estimate_QCELS.x[1],name5=ground_energy_estimate_QCELS.x[2])
     if model_type[0].upper() == 'H':
         np.savez('Data/'+data_name+'_result_HSM_'+str(num_sites)+'sites_QCELS_long',name1=rate_success_QCELS,name2=cost_list_avg_QCELS,name3=err_QCELS,name4=est_QCELS,name5=eigenenergies[0],name6=p0_array)
     if model_type[0].upper() == 'B':
