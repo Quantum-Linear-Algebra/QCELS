@@ -1,3 +1,0 @@
-Testing p0 = 0.6 (1/2)
-    Transpiling QCELS (1/5)
-    Transpiling QCELS (2/5)

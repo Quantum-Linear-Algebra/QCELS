@@ -289,7 +289,7 @@ if __name__ == "__main__":
 
     noise_model = NoiseModel()
 
-    num_sites = 2
+    num_sites = 8
 
     #TFIM parameters
     J_T = 1
@@ -369,18 +369,17 @@ if __name__ == "__main__":
         ham = operator.to_matrix()
         
         eigenenergies, eigenstates = eigh(ham)
-        eigenenergies += ang/distance
         ground_state = eigenstates[:,0]
 
         popp = np.abs(np.dot(eigenstates.conj().T, ground_state))**2
     
     # initialization: S (Quantum Simulation), or R (Quantum Hardware)
-    computation_type = 'S'
+    computation_type = 'R'
     output_file = True
-    p0_array            = np.array([0.6, 0.8]) # initial overlap with the first eigenvector
+    p0_array            = np.array([0.75, 0.9]) # initial overlap with the first eigenvector
     deltas              = 1 - np.sqrt(p0_array)
     trials              = 5 # number of comparisions each test (circuit depths)
-    tests               = 1
+    tests               = 5
     err_threshold       = 0.01
     T0                  = 100
 
@@ -389,7 +388,7 @@ if __name__ == "__main__":
     #epsilons           = np.array([0.5, 0.1, 0.02, 0.009, 0.003, 0.001, 0.0005, 0.0002, 0.00009, 0.00004])
     #epsilons           = np.array([0.5, 0.02, 0.003, 0.0005, 0.00009])
     #iterations         = [int(np.log2(1/i) + 1) for i in epsilons]
-    iterations          = np.arange(trials) + 1 + [int(1.75**i) for i in range(trials)]
+    iterations          = np.arange(trials) + 1 + [i for i in range(trials)]
     epsilons            = [1/(2**(i-1)) for i in iterations]
     err_QCELS           = np.zeros((len(p0_array),trials))
     est_QCELS           = np.zeros((len(p0_array),trials))
@@ -413,7 +412,7 @@ if __name__ == "__main__":
         
         # save qiskit API token for later use
         api_token = input("Enter API Token:")
-        service = QRS(channel = 'ibm_quantum', instance='rpi-rensselaer/research/faulsf', token = api_token)
+        service = QRS(channel = 'ibm_quantum', instance='rpi-rensselaer/general/quantum-club', token = api_token)
         backend = service.backend('ibm_rensselaer')
         data_name = "Q_Real"
 
@@ -435,68 +434,6 @@ if __name__ == "__main__":
 
         print(np.abs(np.vdot(psi, phi))**2)
         ansatz.append(phi)
-
-    # Create HT for lambda_prior
-
-    lambda_results = []
-    circs = []
-    if Ham_type[0].upper() == 'F':
-        print('F3C++')
-        for p in range(len(p0_array)):
-            trans_qc2 = create_HT_circuit(num_sites, unitaries[-1], W = 'Im', backend = backend, init_state = ansatz[p])
-            trans_qc1 = create_HT_circuit(num_sites, unitaries[-1], W = 'Re', backend = backend, init_state = ansatz[p])
-
-            circs = [trans_qc1, trans_qc2]
-            sampler = Sampler(backend)
-
-            job = sampler.run(circs, shots = 10000)
-            result = job.result()
-            lambda_results.append(result)
-
-    if Ham_type[0].upper() == 'Q':
-        print('Qiskit')
-        for p in range(len(p0_array)):
-            mat = expm(-1j*ham)
-            controlled_U = UnitaryGate(mat).control(annotated="yes")
-
-            trans_qc1 = create_HT_circuit(num_sites, controlled_U, W = 'Re', backend = backend, init_state = ansatz[p])
-            trans_qc2 = create_HT_circuit(num_sites, controlled_U, W = 'Im', backend = backend, init_state = ansatz[p])
-
-            circs = [trans_qc1, trans_qc2]
-            sampler = Sampler(backend)
-
-            job = sampler.run(circs, shots = 10000)
-            result = job.result()
-            lambda_results.append(result)
-
-    # Get lambda_prior
-    lambda_priors = []
-
-    for p in range(len(p0_array)):
-        re_data = lambda_results[p][0].data
-        im_data = lambda_results[p][1].data
-        counts_re = re_data[list(re_data.keys())[0]].get_counts()
-        counts_im = im_data[list(im_data.keys())[0]].get_counts()
-
-        re_p0 = im_p0 = 0
-        if counts_re.get('0') is not None:
-            re_p0 = counts_re['0']/10000
-        if counts_im.get('0') is not None:
-            im_p0 = counts_im['0']/10000
-
-        Re = 2*re_p0 - 1
-        Im = 2*im_p0 - 1
-
-        Angle = np.arccos(Re)
-        if  np.arcsin(Im)<0:
-            Phase = 2*np.pi - Angle
-        else:
-            Phase = Angle
-
-        lambda_prior = -Phase
-        lambda_priors.append(lambda_prior)
-
-    print('lambda_priors: ', lambda_priors, '\n target: ', eigenenergies[0])
 
     # Transpiles circuits
     for p in range(len(p0_array)):
@@ -562,8 +499,70 @@ if __name__ == "__main__":
 
     qcs_QCELS = sum(qcs_QCELS, []) # flatten list
 
+    # Create HT for lambda_prior
+
+    lambda_results = []
+    circs = []
+    if Ham_type[0].upper() == 'F':
+        print('F3C++')
+        for p in range(len(p0_array)):
+            trans_qc2 = create_HT_circuit(num_sites, unitaries[-1], W = 'Im', backend = backend, init_state = ansatz[p])
+            trans_qc1 = create_HT_circuit(num_sites, unitaries[-1], W = 'Re', backend = backend, init_state = ansatz[p])
+
+            circs = [trans_qc1, trans_qc2]
+            sampler = Sampler(backend)
+
+            job = sampler.run(circs, shots = 10000)
+            result = job.result()
+            lambda_results.append(result)
+
+    if Ham_type[0].upper() == 'Q':
+        print('Qiskit')
+        for p in range(len(p0_array)):
+            mat = expm(-1j*ham)
+            controlled_U = UnitaryGate(mat).control(annotated="yes")
+
+            trans_qc1 = create_HT_circuit(num_sites, controlled_U, W = 'Re', backend = backend, init_state = ansatz[p])
+            trans_qc2 = create_HT_circuit(num_sites, controlled_U, W = 'Im', backend = backend, init_state = ansatz[p])
+
+            circs = [trans_qc1, trans_qc2]
+            sampler = Sampler(backend)
+
+            job = sampler.run(circs, shots = 10000)
+            result = job.result()
+            lambda_results.append(result)
+
+    # Get lambda_prior
+    lambda_priors = []
+
+    for p in range(len(p0_array)):
+        re_data = lambda_results[p][0].data
+        im_data = lambda_results[p][1].data
+        counts_re = re_data[list(re_data.keys())[0]].get_counts()
+        counts_im = im_data[list(im_data.keys())[0]].get_counts()
+
+        re_p0 = im_p0 = 0
+        if counts_re.get('0') is not None:
+            re_p0 = counts_re['0']/10000
+        if counts_im.get('0') is not None:
+            im_p0 = counts_im['0']/10000
+
+        Re = 2*re_p0 - 1
+        Im = 2*im_p0 - 1
+
+        Angle = np.arccos(Re)
+        if  np.arcsin(Im)<0:
+            Phase = 2*np.pi - Angle
+        else:
+            Phase = Angle
+
+        lambda_prior = -Phase
+        lambda_priors.append(lambda_prior)
+
+    print('lambda_priors: ', lambda_priors, '\n target: ', eigenenergies[0])
+
     #num_splits = len(p0_array)*tests
-    num_splits = 1
+    num_splits = 2
     split = int(len(qcs_QCELS)/num_splits)
 
     qcs_QCELS_circuits = []
@@ -644,7 +643,7 @@ if __name__ == "__main__":
                 ground_energy_estimate_QCELS, cosT_depth_list_this = qcels_largeoverlap(Z_ests[p][test][trial], time_steps, lambda_prior, T)
 
                 if model_type[0].upper() == 'M':
-                    est_this_run_QCELS = ground_energy_estimate_QCELS.x[2] + ang/distance
+                    est_this_run_QCELS = ground_energy_estimate_QCELS.x[2]
                 else:
                     est_this_run_QCELS = ground_energy_estimate_QCELS.x[2] 
 
