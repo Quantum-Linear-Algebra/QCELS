@@ -26,6 +26,17 @@ def flatten(xss):
     return [x for xs in xss for x in xs]
 
 def create_HT_circuit(qubits, unitary, W = 'Re', backend = AerSimulator(), init_state = []):
+    """
+    Description: The code to create a Hadamard test circuits for a unitary operator 
+
+    Args: number of qubits to represent the eigenstate: qubits; 
+    time evolution unitary operator: unitary; 
+    specifies real (imaginary) HT: W = 'Re'('Im'); 
+    pecifies simulation (hardware) backend: backend = AerSimulator() (ibm_'hardware');
+    eigenstate initialization with p0 overlap with ground_state: init_state
+
+    Returns: a transpiled HT circuit: trans_qc
+    """
     qr_ancilla = QuantumRegister(1)
     qr_eigenstate = QuantumRegister(qubits)
     cr = ClassicalRegister(1)
@@ -66,17 +77,13 @@ def qcels_largeoverlap(Z_est, time_steps, lambda_prior, T):
 
     Description: The code of using Multi-level QCELS to estimate the ground state energy for a systems with a large initial overlap
 
-    Args: eigenvalues of the Hamiltonian: spectrum; 
-    overlaps between the initial state and eigenvectors: population; 
-    the depth for generating the data set: T; 
+    Args: expectation values of time evolution: Z_est; 
+    1/precision: T; 
     number of data pairs(time steps): time_steps; 
-    number of samples: Nsample; 
     initial guess of \lambda_0: lambda_prior
 
-    Returns: an estimation of \lambda_0; 
-    maximal evolution time T_{max}; 
-    total evolution time T_{total}
-
+    Returns: an estimation of \lambda_0: res; 
+    total time steps performed: t_ns; 
     """
     t_ns = time_steps
     iterations = len(Z_est) - 1
