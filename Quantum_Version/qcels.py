@@ -25,6 +25,11 @@ ham_shift = 3*np.pi/4
 def flatten(xss):
     return [x for xs in xss for x in xs]
 
+def get_q_job(job_id, service):
+    print("Loading data from job")
+    job = service.job(job_id)
+    return job.result()
+
 def create_HT_circuit(qubits, unitary, W = 'Re', backend = AerSimulator(), init_state = []):
     """
     Description: The code to create a Hadamard test circuits for a unitary operator 
@@ -69,10 +74,10 @@ def qcels_opt(ts, Z_est, x0, bounds = None, method = 'SLSQP'):
 
     return res
 
-def get_tau(j, time_steps, iterations, T):
-    return T/time_steps/(2**(iterations-j))
+def get_tau(j, time_steps, epsilon):
+    return (2**(j - 1 - np.ceil(np.log2(1/epsilon))))/(time_steps*(epsilon))
 
-def qcels_largeoverlap(Z_est, time_steps, lambda_prior, T):
+def qcels_largeoverlap(Z_est, time_steps, lambda_prior, epsilon):
     """Multi-level QCELS for a system with a large initial overlap.
 
     Description: The code of using Multi-level QCELS to estimate the ground state energy for a systems with a large initial overlap
@@ -87,7 +92,7 @@ def qcels_largeoverlap(Z_est, time_steps, lambda_prior, T):
     """
     t_ns = time_steps
     iterations = len(Z_est) - 1
-    tau = get_tau(0, time_steps, iterations, T)
+    tau = get_tau(0, time_steps, epsilon)
     ts=tau*np.arange(time_steps)
     print("      Preprocessing", flush = True)
     #Step up and solve the optimization problem
@@ -102,7 +107,7 @@ def qcels_largeoverlap(Z_est, time_steps, lambda_prior, T):
     lambda_max=ground_energy_estimate_QCELS+np.pi/(2*tau) 
     for iter in range(1, iterations + 1):
         print('      Starting Iteration', "("+str(iter)+'/'+str(iterations)+")", flush = True)
-        tau = get_tau(iter, time_steps, iterations, T)
+        tau = get_tau(iter, time_steps, epsilon)
         ts=tau*np.arange(time_steps)
         t_ns += time_steps
         #Step up and solve the optimization problem
