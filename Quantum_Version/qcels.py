@@ -74,10 +74,10 @@ def qcels_opt(ts, Z_est, x0, bounds = None, method = 'SLSQP'):
 
     return res
 
-def get_tau(j, time_steps, epsilon):
-    return (2**(j - 1 - np.ceil(np.log2(1/epsilon))))/(time_steps*(epsilon))
+def get_tau(j, time_steps, epsilon, delta):
+    return delta*(2**(j - 1 - np.ceil(np.log2(1/epsilon))))/(time_steps*(epsilon))
 
-def qcels_largeoverlap(Z_est, time_steps, lambda_prior, epsilon):
+def qcels_largeoverlap(Z_est, time_steps, lambda_prior, epsilon, delta):
     """Multi-level QCELS for a system with a large initial overlap.
 
     Description: The code of using Multi-level QCELS to estimate the ground state energy for a systems with a large initial overlap
@@ -92,7 +92,7 @@ def qcels_largeoverlap(Z_est, time_steps, lambda_prior, epsilon):
     """
     t_ns = time_steps
     iterations = len(Z_est) - 1
-    tau = get_tau(0, time_steps, epsilon)
+    tau = get_tau(0, time_steps, epsilon, delta)
     ts=tau*np.arange(time_steps)
     print("      Preprocessing", flush = True)
     #Step up and solve the optimization problem
@@ -107,7 +107,7 @@ def qcels_largeoverlap(Z_est, time_steps, lambda_prior, epsilon):
     lambda_max=ground_energy_estimate_QCELS+np.pi/(2*tau) 
     for iter in range(1, iterations + 1):
         print('      Starting Iteration', "("+str(iter)+'/'+str(iterations)+")", flush = True)
-        tau = get_tau(iter, time_steps, epsilon)
+        tau = get_tau(iter, time_steps, epsilon, delta)
         ts=tau*np.arange(time_steps)
         t_ns += time_steps
         #Step up and solve the optimization problem
