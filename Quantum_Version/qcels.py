@@ -127,22 +127,15 @@ def qcels_largeoverlap(Z_est, time_steps, lambda_prior, epsilon, delta):
 
 if __name__ == "__main__":
     from matplotlib import pyplot as plt
-    import tfim_1d
     from Ham_generator import *
     from qcels import *
     import qiskit
-    import concurrent.futures
-    import multiprocessing as mp
     from qiskit_nature.second_q.drivers import PySCFDriver
     from qiskit_nature.second_q.mappers import ParityMapper
-    from qiskit_nature.second_q.algorithms import GroundStateEigensolver
-    from qiskit_nature.second_q.circuit.library import HartreeFock
-    from qiskit_algorithms import NumPyMinimumEigensolver
     from qiskit_nature.units import DistanceUnit
     from qiskit_ibm_runtime import QiskitRuntimeService as QRS
     from qiskit_ibm_runtime import SamplerV2 as Sampler
-    from qiskit_aer.noise import NoiseModel
-    from qiskit.circuit.library import Initialize
+    from qiskit_aer.noise import NoiseModel, depolarizing_error, QuantumError, coherent_unitary_error, ReadoutError, thermal_relaxation_error
     import matplotlib
     matplotlib.rcParams['font.size'] = 15
     matplotlib.rcParams['lines.markersize'] = 10
@@ -234,7 +227,7 @@ if __name__ == "__main__":
     computation_type = 'R'
     output_file = True
     p0_array            = np.array([0.75, 0.9]) # initial overlap with the first eigenvector
-    deltas              = 1 - np.sqrt(p0_array)
+    deltas              = np.sqrt(1-p0_array)
     trials              = 5 # number of comparisions each test (circuit depths)
     tests               = 5
     err_threshold       = 0.01
@@ -242,15 +235,21 @@ if __name__ == "__main__":
 
     # QCELS variables
     time_steps          = 5
-    iterations          = np.arange(trials) + 1 + [i for i in range(trials)]
-    epsilons            = [1/(2**(i-1)) for i in iterations]
+    epsilons            = np.logspace(-1,-3, trials)
+    print('Chosen epsilons', epsilons)
+    iterations          = [int(np.ceil(np.log2(1/i)) + 1) for i in epsilons]
+    epsilons            = [2**(1 - i) for i in iterations]
     err_QCELS           = np.zeros((len(p0_array),trials))
     est_QCELS           = np.zeros((len(p0_array),trials))
     cost_list_avg_QCELS = np.zeros((len(p0_array),trials))
     rate_success_QCELS  = np.zeros((len(p0_array),trials))
     max_T_QCELS         = np.zeros((len(p0_array),trials))
 
+    print('Iterations', iterations)
+    print('Real epsilons', epsilons)
+
     # initialization: S (Quantum Simulation), or R (Quantum Hardware)
+
     if computation_type[0].upper() == 'S':
         print("\nQUANTUM SIMULATION SELECTED\n")
 
@@ -263,7 +262,7 @@ if __name__ == "__main__":
         
         # save qiskit API token for later use
         api_token = input("Enter API Token:")
-        service = QRS(channel = 'ibm_quantum', instance='rpi-rensselaer/general/quantum-club', token = api_token)
+        service = QRS(channel = 'ibm_quantum', instance='rpi-rensselaer/research/faulsf', token = api_token)
         backend = service.backend('ibm_rensselaer')
         data_name = "Q_Real"
 
@@ -286,7 +285,7 @@ if __name__ == "__main__":
         print(np.abs(np.vdot(psi, phi))**2)
         ansatz.append(phi)
 
-    # Create HT for lambda_prior
+    # Create and run HT for lambda_prior
 
     circs = []
     if Ham_type[0].upper() == 'F':
@@ -378,6 +377,7 @@ if __name__ == "__main__":
     # Transpiles circuits
     for p in range(len(p0_array)):
         p0=p0_array[p]
+        delta = deltas[p]
 
         print("Testing p0 =", p0,"("+str(p+1)+"/"+str(len(p0_array))+")")
 
@@ -388,12 +388,13 @@ if __name__ == "__main__":
         #------------------QCELS-----------------
         for trial in range(trials):
             print("    Transpiling QCELS", "("+str(trial+1)+"/"+str(trials)+")")
-            epsilon = epsilons[trial]
-
+            
             if output_file: print("    Transpiling QCELS", "("+str(trial+1)+"/"+str(trials)+")", file = outfile, flush = True)
-            T = 1/epsilon
+
+            epsilon = epsilons[trial]
             for j in range(iterations[trial] + 1):
-                tau = get_tau(j, time_steps, iterations[trial], T)
+                tau = get_tau(j, time_steps, epsilon, delta)
+                print('tau',tau)
                 qcs_QCELS = []
                 if Ham_type[0].upper() == 'F':
                     unitaries, _ = (generate_TFIM_gates(num_sites, time_steps, tau, g_T, ham_shift, '../../../f3cpp', trotter = 1000))
@@ -421,11 +422,11 @@ if __name__ == "__main__":
         print("Loading p0 =", p0,"("+str(p+1)+"/"+str(len(p0_array))+")")
         QCELS_depths.append([])
         for test in range(tests):
-            print("Test", test + 1)
+            print("  Test", test + 1)
             QCELS_depths[p].append([])
             for trial in range(trials):
                 depth = 0
-                print('Loading QCELS data ('+str(trial+1)+'/'+str(trials)+')')
+                print('    Loading QCELS data ('+str(trial+1)+'/'+str(trials)+')')
                 for i in range(iterations[trial] + 1):
                     with open('Transpiled_Circuits/QCELS_p0='+str(p0)+'_Trial'+str(trial)+'_Iter='+str(i)+'.qpy', 'rb') as f:
                         circs = qiskit.qpy.load(f)
@@ -456,8 +457,9 @@ if __name__ == "__main__":
         results.append(result)
     results = flatten(results)
 
-    Z_ests = []
+    # results = list(get_q_job('d0wcfkphtw7g008py6vg', service))
 
+    Z_ests = []
     for p in range(len(p0_array)):
         Z_ests.append([])
         for test in range(tests):
@@ -497,6 +499,7 @@ if __name__ == "__main__":
     for p in range(len(p0_array)):
         p0=p0_array[p]
         lambda_prior = lambda_priors[p]
+        delta = deltas[p]
         
         n_success_QCELS= np.zeros(trials)
 
@@ -513,13 +516,8 @@ if __name__ == "__main__":
 
                 if output_file: print("    Running QCELS", "("+str(trial+1)+"/"+str(trials)+")", file = outfile, flush = True)
                 epsilon = epsilons[trial]
-                T = 1/epsilon
-                ground_energy_estimate_QCELS, cosT_depth_list_this = qcels_largeoverlap(Z_ests[p][test][trial], time_steps, lambda_prior, T)
-
-                if model_type[0].upper() == 'M':
-                    est_this_run_QCELS = ground_energy_estimate_QCELS.x[2]
-                else:
-                    est_this_run_QCELS = ground_energy_estimate_QCELS.x[2] 
+                ground_energy_estimate_QCELS, cosT_depth_list_this = qcels_largeoverlap(Z_ests[p][test][trial], time_steps, lambda_prior, epsilon, delta)
+                est_this_run_QCELS = ground_energy_estimate_QCELS.x[2] 
 
                 if output_file: print("      Estimated ground state energy =", est_this_run_QCELS, file = outfile)
                 
@@ -538,7 +536,7 @@ if __name__ == "__main__":
         err_QCELS[p,:] = err_QCELS[p,:]/tests
         est_QCELS[p,:] = est_QCELS[p,:]/tests
         #cost_list_avg_QCELS[p,:]=cost_list_avg_QCELS[p,:]/tests
-        cost_list_avg_QCELS[p,:]=2*T0*cost_list_avg_QCELS[p,:]/tests # total shots instead of time steps
+        cost_list_avg_QCELS[p,:]=2*T0*cost_list_avg_QCELS[p,:]/tests # total shots instead of time steps (dont multiply by T0 for observables)
 
 
     if model_type[0].upper() == 'T':
