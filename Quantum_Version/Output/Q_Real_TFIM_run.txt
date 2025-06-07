@@ -1,27 +1,27 @@
-Testing p0 = 0.75 (1/2)
+Testing p0 = 0.6 (1/2)
     Running QCELS (1/5)
-      Estimated ground state energy = -1.7910365984288241
+      Estimated ground state energy = 6.276987961699672
     Running QCELS (2/5)
-      Estimated ground state energy = -1.7834515270215636
+      Estimated ground state energy = -10.64132916685823
     Running QCELS (3/5)
-      Estimated ground state energy = -1.7814584690174886
+      Estimated ground state energy = -3.237278977414712
     Running QCELS (4/5)
-      Estimated ground state energy = -1.7822666151466195
+      Estimated ground state energy = -2.796604586843949
     Running QCELS (5/5)
-      Estimated ground state energy = -1.782186120807809
+      Estimated ground state energy = 9.979745439070234
     Finished QCELS data
 
-Testing p0 = 0.9 (2/2)
+Testing p0 = 0.8 (2/2)
     Running QCELS (1/5)
-      Estimated ground state energy = -1.7822588233692018
+      Estimated ground state energy = 6.254536077054386
     Running QCELS (2/5)
-      Estimated ground state energy = -1.7809156682433889
+      Estimated ground state energy = -23.544865102258186
     Running QCELS (3/5)
-      Estimated ground state energy = -1.7814703050167635
+      Estimated ground state energy = -2.796567441890101
     Running QCELS (4/5)
-      Estimated ground state energy = -1.7822179016470265
+      Estimated ground state energy = -2.3017504349434423
     Running QCELS (5/5)
-      Estimated ground state energy = -1.7821531062362586
+      Estimated ground state energy = -22.94673841925537
     Finished QCELS data
 
 Saved data to files starting with Q_Real

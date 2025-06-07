@@ -1,51 +1,42 @@
-Testing p0 = 0.6 (1/2) trial (1/5)
-    Running QCELS trial (1/5)
-      Estimated ground state energy = -2.217154801028975
+Testing p0 = 0.75 (1/1) trial (1/10)
+    Running QCELS trial (1/10)
+      Estimated ground state energy = -2.257091118078944
     Finished QCELS data
 
-Testing p0 = 0.6 (1/2) trial (2/5)
-    Running QCELS trial (2/5)
-      Estimated ground state energy = -1.3084888806832826
+    Running QCELS trial (2/10)
+      Estimated ground state energy = -2.2692193397028535
     Finished QCELS data
 
-Testing p0 = 0.6 (1/2) trial (3/5)
-    Running QCELS trial (3/5)
-      Estimated ground state energy = -1.5808007710381464
+    Running QCELS trial (3/10)
+      Estimated ground state energy = -2.2834394833407066
     Finished QCELS data
 
-Testing p0 = 0.6 (1/2) trial (4/5)
-    Running QCELS trial (4/5)
-      Estimated ground state energy = -1.7151770694822401
+    Running QCELS trial (4/10)
+      Estimated ground state energy = -2.264144278145095
     Finished QCELS data
 
-Testing p0 = 0.6 (1/2) trial (5/5)
-    Running QCELS trial (5/5)
-      Estimated ground state energy = -1.5042460013566687
+    Running QCELS trial (5/10)
+      Estimated ground state energy = -2.473941932635787
     Finished QCELS data
 
-Testing p0 = 0.9 (2/2) trial (1/5)
-    Running QCELS trial (1/5)
-      Estimated ground state energy = -2.308496690198456
+    Running QCELS trial (6/10)
+      Estimated ground state energy = -2.3395260876700164
     Finished QCELS data
 
-Testing p0 = 0.9 (2/2) trial (2/5)
-    Running QCELS trial (2/5)
-      Estimated ground state energy = -1.9577104469053406
+    Running QCELS trial (7/10)
+      Estimated ground state energy = -2.4050322156673416
     Finished QCELS data
 
-Testing p0 = 0.9 (2/2) trial (3/5)
-    Running QCELS trial (3/5)
-      Estimated ground state energy = -2.2911474519912214
+    Running QCELS trial (8/10)
+      Estimated ground state energy = -2.395848863024527
     Finished QCELS data
 
-Testing p0 = 0.9 (2/2) trial (4/5)
-    Running QCELS trial (4/5)
-      Estimated ground state energy = -1.3260942954067105
+    Running QCELS trial (9/10)
+      Estimated ground state energy = -2.328655672517824
     Finished QCELS data
 
-Testing p0 = 0.9 (2/2) trial (5/5)
-    Running QCELS trial (5/5)
-      Estimated ground state energy = -1.8627695348829518
+    Running QCELS trial (10/10)
+      Estimated ground state energy = -2.47675670625583
     Finished QCELS data
 
 Saved data to files starting with Q_Sim

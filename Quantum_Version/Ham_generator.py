@@ -1,6 +1,9 @@
 from qiskit import QuantumCircuit
 from qiskit.quantum_info import Pauli, Operator
 from qcels import ham_shift as scale_factor
+from qiskit_nature.second_q.drivers import PySCFDriver
+from qiskit_nature.second_q.mappers import ParityMapper
+from qiskit_nature.units import DistanceUnit
 import numpy as np
 from numpy.linalg import eigh
 import subprocess
@@ -104,7 +107,7 @@ def generate_TFIM_gates(qubits, steps, dt, g, scaling, location, trotter = 1):
     return gates, H
 
 def create_hamiltonian(qubits, system, scale_factor, g=0, J=4, t=0, U=0, x=1, y=1, show_steps=False):
-    assert(system[0:4].upper() == "TFIM" or system[0:4].upper() == "SPIN" or system[0:4].upper() == "HUBB")
+    assert(system[0:4].upper() == "TFIM" or system[0:4].upper() == "SPIN" or system[0:4].upper() == "HUBB" or system[0:4].upper() == "H2")
     # assert(abs(scale_factor)<=2*pi)
     H = np.zeros((2**qubits, 2**qubits), dtype=np.complex128)
     if system[0:4].upper() == "TFIM":
@@ -198,6 +201,20 @@ def create_hamiltonian(qubits, system, scale_factor, g=0, J=4, t=0, U=0, x=1, y=
         up_down_hopping_term*=U
 
         H = up_down_hopping_term+left_right_hopping_term
+
+    elif system[0:4].upper() == "H2":
+        driver = PySCFDriver(
+            atom=f'H .0 .0 .0; H .0 .0 {0.5}',
+            unit=DistanceUnit.ANGSTROM,
+            basis='sto3g'
+        )
+
+        molecule = driver.run()
+        mapper = ParityMapper(num_particles=molecule.num_particles)
+        hamiltonian = molecule.hamiltonian.second_q_op()
+        tapered_mapper = molecule.get_tapered_mapper(mapper)
+        operator = tapered_mapper.map(hamiltonian)
+        H = operator.to_matrix()
             
     if show_steps:
         val, vec = np.linalg.eigh(H)
