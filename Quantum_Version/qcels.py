@@ -7,6 +7,7 @@ Last revision: 11/22/2022
 """
 import numpy as np
 from numpy.linalg import eigh
+from scipy.linalg import svd
 from scipy.optimize import minimize
 from scipy.special import erf
 import fejer_kernel
@@ -29,6 +30,20 @@ def get_q_job(job_id, service):
     print("Loading data from job")
     job = service.job(job_id)
     return job.result()
+
+def closest_unitary(A):
+    """ 
+    Description: Calculate the unitary matrix U that is closest with respect to the
+    operator norm distance to the general matrix A. Used when qiskit fails to transpile
+    unitary gate due to float point rounding.
+
+    Args: Unitary matrix which qiskit fails to diagonalize: A
+
+    Return: Unitary as an np matrix
+    """
+    V, __, Wh = svd(A)
+    U = np.matrix(V.dot(Wh))
+    return U
 
 def create_HT_circuit(qubits, unitary, W = 'Re', backend = AerSimulator(), init_state = []):
     """
@@ -150,6 +165,7 @@ if __name__ == "__main__":
     from Ham_generator import *
     from qcels import *
     import qiskit
+    import pickle
     from qiskit_nature.second_q.drivers import PySCFDriver
     from qiskit_nature.second_q.mappers import ParityMapper
     from qiskit_nature.units import DistanceUnit
@@ -158,10 +174,11 @@ if __name__ == "__main__":
     from qiskit_aer.noise import NoiseModel, depolarizing_error, QuantumError, coherent_unitary_error, ReadoutError, thermal_relaxation_error
     import matplotlib
     matplotlib.rcParams['font.size'] = 15
-    matplotlib.rcParams['lines.markersize'] = 10
+    matplotlib.rcParams['lines.markersize'] = 10 
     np.set_printoptions(threshold=np.inf)
-
-    num_sites = 2
+    
+    
+    num_sites = 3
 
     #TFIM parameters
     J_T = 1
@@ -181,7 +198,7 @@ if __name__ == "__main__":
     # T (TFIM), H (HSM), B (Hubbard), M (H2 molecule)
     model_type = 'T'
     # Q (Qiskit), F(F3C++)
-    Ham_type = 'F'
+    Ham_type = 'Q'
 
     if model_type[0].upper() == 'T':
         mn = 'TFIM'
@@ -225,19 +242,7 @@ if __name__ == "__main__":
         ang = 0.52917721092
         print('H2 Molecule')
 
-        driver = PySCFDriver(
-            atom=f'H .0 .0 .0; H .0 .0 {distance}',
-            unit=DistanceUnit.ANGSTROM,
-            basis='sto3g'
-        )
-
-        molecule = driver.run()
-        mapper = ParityMapper(num_particles=molecule.num_particles)
-        hamiltonian = molecule.hamiltonian.second_q_op()
-        tapered_mapper = molecule.get_tapered_mapper(mapper)
-        operator = tapered_mapper.map(hamiltonian)
-        ham = operator.to_matrix()
-        
+        ham = create_hamiltonian(num_sites, 'H2', ham_shift, show_steps=False)
         eigenenergies, eigenstates = eigh(ham)
         ground_state = eigenstates[:,0]
 
@@ -246,16 +251,16 @@ if __name__ == "__main__":
     # initialization: S (Quantum Simulation), or R (Quantum Hardware)
     computation_type = 'R'
     output_file = True
-    p0_array            = np.array([0.75, 0.9]) # initial overlap with the first eigenvector
+    p0_array            = np.array([0.6, 0.8]) # initial overlap with the first eigenvector
     deltas              = np.sqrt(1-p0_array)
     trials              = 5 # number of comparisions each test (circuit depths)
-    tests               = 5
+    tests               = 1
     err_threshold       = 0.01
     T0                  = 100
 
     # QCELS variables
-    time_steps          = 5
-    epsilons            = np.logspace(-1,-3, trials)
+    time_steps          = 20
+    epsilons            = np.logspace(-1,-4, trials)
     print('Chosen epsilons', epsilons)
     iterations          = [int(np.ceil(np.log2(1/i)) + 1) for i in epsilons]
     epsilons            = [2**(1 - i) for i in iterations]
@@ -395,6 +400,7 @@ if __name__ == "__main__":
     print('lambda_priors: ', lambda_priors, '\n target: ', eigenenergies[0])
 
     # Transpiles circuits
+    times = []
     for p in range(len(p0_array)):
         p0=p0_array[p]
         delta = deltas[p]
@@ -414,7 +420,6 @@ if __name__ == "__main__":
             epsilon = epsilons[trial]
             for j in range(iterations[trial] + 1):
                 tau = get_tau(j, time_steps, epsilon, delta)
-                print('tau',tau)
                 qcs_QCELS = []
                 if Ham_type[0].upper() == 'F':
                     unitaries, _ = (generate_TFIM_gates(num_sites, time_steps, tau, g_T, ham_shift, '../../../f3cpp', trotter = 1000))
@@ -422,6 +427,7 @@ if __name__ == "__main__":
                     if Ham_type[0].upper() == 'Q':
                         t = tau*data_pair
                         mat = expm(-1j*ham*t)
+                        times.append(t)
                         controlled_U = UnitaryGate(mat).control(annotated="yes")
                         qcs_QCELS.append(create_HT_circuit(num_sites, controlled_U, W = 'Re', backend = backend, init_state = ansatz[p]))
                         qcs_QCELS.append(create_HT_circuit(num_sites, controlled_U, W = 'Im', backend = backend, init_state = ansatz[p]))
@@ -434,27 +440,19 @@ if __name__ == "__main__":
         print('Finished transpiling for QCELS ', "(p0="+str(p0)+")")
     
     # Loads transpiled circuits
-    QCELS_depths = []
     qcs_QCELS = []
 
     for p in range(len(p0_array)):
         p0 = p0_array[p]
         print("Loading p0 =", p0,"("+str(p+1)+"/"+str(len(p0_array))+")")
-        QCELS_depths.append([])
         for test in range(tests):
-            print("  Test", test + 1)
-            QCELS_depths[p].append([])
+            print("  Test", str(test + 1) + '/' + str(tests))
             for trial in range(trials):
-                depth = 0
                 print('    Loading QCELS data ('+str(trial+1)+'/'+str(trials)+')')
                 for i in range(iterations[trial] + 1):
                     with open('Transpiled_Circuits/QCELS_p0='+str(p0)+'_Trial'+str(trial)+'_Iter='+str(i)+'.qpy', 'rb') as f:
                         circs = qiskit.qpy.load(f)
-                        for time_step in range(time_steps):
-                            depth += circs[time_step].depth() 
                         qcs_QCELS.append(circs)
-
-                QCELS_depths[p][test].append(depth)
 
     qcs_QCELS = sum(qcs_QCELS, []) # flatten list
 
@@ -504,13 +502,7 @@ if __name__ == "__main__":
                         Re = 2*re_p0-1
                         Im = 2*im_p0-1 
 
-                        Angle = np.arccos(Re)
-                        if  np.arcsin(Im)<0:
-                            Phase = 2*np.pi - Angle
-                        else:
-                            Phase = Angle
-                        Phase = Phase
-                        Z_est = complex(np.cos(Phase),np.sin(Phase))
+                        Z_est = complex(Re,Im)
                         Z_ests[p][test][trial][iter].append(Z_est)
 
     if output_file:
@@ -536,15 +528,15 @@ if __name__ == "__main__":
 
                 if output_file: print("    Running QCELS", "("+str(trial+1)+"/"+str(trials)+")", file = outfile, flush = True)
                 epsilon = epsilons[trial]
-                ground_energy_estimate_QCELS, cosT_depth_list_this = qcels_largeoverlap(Z_ests[p][test][trial], time_steps, lambda_prior, epsilon, delta)
+                ground_energy_estimate_QCELS, cosT_depth_list_this = qcels_largeoverlap(Z_ests[p][test][trial], time_steps, lambda_prior, epsilon, delta) # add [test] index
                 est_this_run_QCELS = ground_energy_estimate_QCELS.x[2] 
 
                 if output_file: print("      Estimated ground state energy =", est_this_run_QCELS, file = outfile)
                 
                 err_this_run_QCELS = np.abs(est_this_run_QCELS - eigenenergies[0])
-                err_QCELS[p,trial] = err_QCELS[p,trial]+np.abs(err_this_run_QCELS)
+                err_QCELS[p,trial] = err_QCELS[p,trial] + np.abs(err_this_run_QCELS)
                 est_QCELS[p,trial] = est_QCELS[p,trial] + est_this_run_QCELS
-                cost_list_avg_QCELS[p,trial]=cost_list_avg_QCELS[p,trial]+cosT_depth_list_this
+                cost_list_avg_QCELS[p,trial] = cost_list_avg_QCELS[p,trial] + cosT_depth_list_this
 
                 if np.abs(err_this_run_QCELS)<err_threshold:
                     n_success_QCELS[trial]+=1
@@ -556,7 +548,7 @@ if __name__ == "__main__":
         err_QCELS[p,:] = err_QCELS[p,:]/tests
         est_QCELS[p,:] = est_QCELS[p,:]/tests
         #cost_list_avg_QCELS[p,:]=cost_list_avg_QCELS[p,:]/tests
-        cost_list_avg_QCELS[p,:]=2*T0*cost_list_avg_QCELS[p,:]/tests # total shots instead of time steps (dont multiply by T0 for observables)
+        cost_list_avg_QCELS[p,:]=2*cost_list_avg_QCELS[p,:]/tests # total shots instead of time steps (dont multiply by T0 for observables)
 
 
     if model_type[0].upper() == 'T':
