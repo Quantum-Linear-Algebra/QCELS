@@ -106,7 +106,7 @@ def qcels_largeoverlap(Z_est, time_steps, lambda_prior, epsilon, delta):
     total time steps performed: t_ns; 
     """
     t_ns = time_steps
-    iterations = len(Z_est) - 1
+    iterations = len(Z_est)
     tau = get_tau(0, time_steps, epsilon, delta)
     ts=tau*np.arange(time_steps)
     print("      Preprocessing", flush = True)
@@ -120,7 +120,7 @@ def qcels_largeoverlap(Z_est, time_steps, lambda_prior, epsilon, delta):
     #Update the estimation interval
     lambda_min=ground_energy_estimate_QCELS-np.pi/(2*tau) 
     lambda_max=ground_energy_estimate_QCELS+np.pi/(2*tau) 
-    for iter in range(1, iterations + 1):
+    for iter in range(iterations):
         print('      Starting Iteration', "("+str(iter)+'/'+str(iterations)+")", flush = True)
         tau = get_tau(iter, time_steps, epsilon, delta)
         ts=tau*np.arange(time_steps)
@@ -178,7 +178,7 @@ if __name__ == "__main__":
     np.set_printoptions(threshold=np.inf)
     
     
-    num_sites = 3
+    num_sites = 8
 
     #TFIM parameters
     J_T = 1
@@ -198,7 +198,7 @@ if __name__ == "__main__":
     # T (TFIM), H (HSM), B (Hubbard), M (H2 molecule)
     model_type = 'T'
     # Q (Qiskit), F(F3C++)
-    Ham_type = 'Q'
+    Ham_type = 'F'
 
     if model_type[0].upper() == 'T':
         mn = 'TFIM'
@@ -249,7 +249,7 @@ if __name__ == "__main__":
         popp = np.abs(np.dot(eigenstates.conj().T, ground_state))**2
     
     # initialization: S (Quantum Simulation), or R (Quantum Hardware)
-    computation_type = 'R'
+    computation_type = 'S'
     output_file = True
     p0_array            = np.array([0.6, 0.8]) # initial overlap with the first eigenvector
     deltas              = np.sqrt(1-p0_array)
@@ -259,7 +259,7 @@ if __name__ == "__main__":
     T0                  = 100
 
     # QCELS variables
-    time_steps          = 20
+    time_steps          = 5
     epsilons            = np.logspace(-1,-4, trials)
     print('Chosen epsilons', epsilons)
     iterations          = [int(np.ceil(np.log2(1/i)) + 1) for i in epsilons]
