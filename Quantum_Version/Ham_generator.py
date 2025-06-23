@@ -201,7 +201,6 @@ def create_hamiltonian(qubits, system, scale_factor, g=0, J=4, t=0, U=0, x=1, y=
         up_down_hopping_term*=U
 
         H = up_down_hopping_term+left_right_hopping_term
-        print(H)
 
     elif system[0:4].upper() == "H2":
         driver = PySCFDriver(

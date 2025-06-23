@@ -107,7 +107,7 @@ def qcels_largeoverlap(Z_est, time_steps, lambda_prior, epsilon, delta):
     """
     t_ns = time_steps
     iterations = len(Z_est)
-    tau = get_tau(0, time_steps, epsilon, delta)
+    tau = get_tau(1, time_steps, epsilon, delta)
     ts=tau*np.arange(time_steps)
     print("      Preprocessing", flush = True)
     #Step up and solve the optimization problem
@@ -120,7 +120,7 @@ def qcels_largeoverlap(Z_est, time_steps, lambda_prior, epsilon, delta):
     #Update the estimation interval
     lambda_min=ground_energy_estimate_QCELS-np.pi/(2*tau) 
     lambda_max=ground_energy_estimate_QCELS+np.pi/(2*tau) 
-    for iter in range(iterations):
+    for iter in range(1, iterations + 1):
         print('      Starting Iteration', "("+str(iter)+'/'+str(iterations)+")", flush = True)
         tau = get_tau(iter, time_steps, epsilon, delta)
         ts=tau*np.arange(time_steps)
@@ -128,7 +128,7 @@ def qcels_largeoverlap(Z_est, time_steps, lambda_prior, epsilon, delta):
         #Step up and solve the optimization problem
         x0=np.array((ground_coefficient_QCELS,ground_coefficient_QCELS2,ground_energy_estimate_QCELS))
         bnds=((-np.inf,np.inf),(-np.inf,np.inf),(lambda_min,lambda_max)) 
-        res = qcels_opt(ts, Z_est[iter], x0, bounds=bnds)#Solve the optimization problem
+        res = qcels_opt(ts, Z_est[iter - 1], x0, bounds=bnds)#Solve the optimization problem
         #Update initial guess for next iteration
         ground_coefficient_QCELS=res.x[0]
         ground_coefficient_QCELS2=res.x[1]
